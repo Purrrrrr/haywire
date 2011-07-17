@@ -3,6 +3,7 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 test
+haywire
 *.a
 *.swp
 *.log
