@@ -180,7 +180,6 @@ void parse_php_error(logerror *err) {
   } else {
     return;
   }
-  printf("%d\n", err->type);
   //*msg = ':'; //Restore the ':';
   while(msg != '\0' && !isalnum(*msg)) ++msg;
   err->msg = msg;
@@ -205,6 +204,8 @@ void parse_php_error(logerror *err) {
     err->type = E_UNPARSED;
     return;
   }
+
+  *linenr = '\0';
   linenr += strlen(linenr_prefix);
   if (!sscanf(linenr, "%d", &(err->linenr))) {
     err->type = E_UNPARSED;
