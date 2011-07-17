@@ -68,7 +68,7 @@ void print_usage() {
   printf("Usage: haywire [-w|-n lines] filename [-a filename [filename] ...]\n");
   printf("-n Determines how many last lines are included from the file.\n");
   printf("   The default is 10.\n");
-  printf("-w Read the whole file");
+  printf("-w Read the whole file\n");
   printf("-a Tells the analyzer to append an additional file to the analysis without following it\n");
   exit(EXIT_SUCCESS);
 }
