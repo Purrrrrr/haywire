@@ -156,7 +156,10 @@ void display_logs() {
   }
 
   int maxrows = list_row_count();
-  printw("%d-%d of %d entries %s%s", app.scroll+1, app.scroll+maxrows, errorlist_count(app.log), bell_type, bell_level);
+  int bottomitem = app.scroll + maxrows;
+  int itemcount = errorlist_count(app.log);
+  if (bottomitem > itemcount) bottomitem = itemcount;
+  printw("%d-%d of %d entries %s%s", app.scroll+1, bottomitem, itemcount, bell_type, bell_level);
   
   short bell_ringed = 0;
   int skip = app.scroll;
