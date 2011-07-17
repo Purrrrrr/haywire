@@ -13,9 +13,11 @@
 #define SORT_TYPE_DESC -1
 #define SORT_DATE 2
 #define SORT_DATE_DESC -2
+#define SORT_MAX 2
 
 typedef struct logerror {
   time_t date;
+  short is_new;
   int type;
   int count;
   char *logline; //The whole log line, can contain null characters

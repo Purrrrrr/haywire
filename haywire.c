@@ -5,6 +5,7 @@
 #include "appstate.h"
 #include "logs.h"
 
+#define STATUS_LINE_COUNT 1
 haywire_state app;
 
 //Helper buffers
@@ -12,6 +13,11 @@ size_t filename_len = 256;
 char *filename = NULL; 
 
 void init_screen();
+int list_row_count();
+void toggle_bell_type();
+void toggle_bell_level();
+void list_scroll_page(int scroll);
+void list_scroll(int scroll);
 void display_logs();
 void print_error(logerror *err, int selected, int row);
 void vim();
@@ -30,16 +36,34 @@ int main(int argv, char *args[]) {
 //    mvaddchstr(0,0,"Test");
     int c = getch();
     if (c == 'q') break;
+    switch(c) {
+      case 'j': 
+      case KEY_DOWN: 
+      list_scroll(1);
+      break;
+      case 'k': 
+      case KEY_UP: 
+      list_scroll(-1);
+      break;
+      case ' ':
+      case KEY_NPAGE: 
+      list_scroll_page(1);
+      break;
+      case KEY_PPAGE: 
+      list_scroll_page(-1);
+      break;
+      case 'B':
+      toggle_bell_type();
+      break;
+      case 'b':
+      toggle_bell_level();
+      break;
+      case 'v':
+      vim();
+      break;
+    }
     
     logfile_refresh(app.log);
-
-    if (c == 'j' && app.scroll+1 < errorlist_count(app.log)) {
-      ++app.scroll;
-    }
-    if (c == 'k' && app.scroll > 0) {
-      --app.scroll;
-    }
-    if (c == 'v') vim();
     display_logs();
   }
 
@@ -59,6 +83,7 @@ void init_screen() {
   noecho();
   nonl();
   halfdelay(app.update_delay);
+  keypad(app.screen, TRUE);
   clear();
 
   if(has_colors() == FALSE) {
@@ -74,23 +99,81 @@ void init_screen() {
 
   refresh();
 }
-void display_logs() {
-  int x = 0;
-  int y = 0;
-  getmaxyx(app.screen, y,x);
 
+int list_row_count() {
+  int x = 0;
+  int maxrows = 0;
+  getmaxyx(app.screen, maxrows, x);
+  return maxrows - STATUS_LINE_COUNT;
+}
+void toggle_bell_type() {
+  ++app.bell_type;
+  if (app.bell_type > BELLTYPE_MAX) app.bell_type = 0;
+}
+void toggle_bell_level() {
+  switch(app.bell_level) {
+    case E_PARSE:
+    app.bell_level = E_NOTICE; break;
+    case E_NOTICE:
+    app.bell_level = E_MISSING_FILE; break;
+    case E_MISSING_FILE:
+    app.bell_level = E_PARSE; break;
+  }
+}
+void list_scroll_page(int scroll) {
+  list_scroll(scroll*list_row_count());
+}
+void list_scroll(int scroll) {
+  app.scroll += scroll;
+  if (app.scroll < 0) app.scroll = 0;
+  int maxscroll = errorlist_count(app.log);
+  maxscroll -= list_row_count();
+  if (app.scroll > maxscroll) app.scroll = maxscroll;
+}
+
+void display_logs() {
   clear();
-  /*
-  move(1,0);
-  printw("%d,%d", y, x);
-  hline(ACS_HLINE, 512);
-  */
-  printw("Scroll: %d (%d entries)", app.scroll, errorlist_count(app.log));
+  move(0,0);
+
+  char *bell_type = ""; 
+  switch(app.bell_type) {
+    case NO_BELL:
+    bell_type = "- No bell on new errors"; break;
+    case BELL_ON_NEW_ERROR:
+    bell_type = "- Bell on "; break;
+    case BELL_ON_NEW_ERRORTYPE:
+    bell_type = "- Bell on new types of "; break;
+  }
+  char *bell_level = ""; 
+  if (app.bell_type != NO_BELL) {
+    switch(app.bell_level) {
+      case E_PARSE:
+      bell_level = "fatal errors"; break;
+      case E_NOTICE:
+      bell_level = "PHP errors"; break;
+      case E_MISSING_FILE:
+      bell_level = "all errors"; break;
+    }
+  }
+
+  int maxrows = list_row_count();
+  printw("%d-%d of %d entries %s%s", app.scroll+1, app.scroll+maxrows, errorlist_count(app.log), bell_type, bell_level);
   
+  short bell_ringed = 0;
   int skip = app.scroll;
   int i = 0;
   logerror *err = errorlist_sort(app.log, app.sorting);
   while(err != NULL) {
+    if (err->type <= app.bell_level) {
+      if (app.bell_type == BELL_ON_NEW_ERROR && err->date > app.last_error_date) {
+        bell_ringed = 1;
+      } else if (app.bell_type == BELL_ON_NEW_ERRORTYPE && err->is_new) {
+        bell_ringed = 1;
+      }
+    }
+    err->is_new = 0;
+    if (err->date > app.last_error_date) app.last_error_date = err->date;
+
     if (skip > 0) {
       --skip;
     } else {
@@ -99,6 +182,9 @@ void display_logs() {
     }
     err = err->next;
   } 
+  if (bell_ringed) {
+    beep();
+  }
 
   refresh();
 }

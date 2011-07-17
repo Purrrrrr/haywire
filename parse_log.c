@@ -42,6 +42,7 @@ logerror *parse_error_line(const char *line) {
   if (err == NULL) return NULL;
 
   err->count = 1;
+  err->is_new = 1;
   err->date = mktime(&tm);
   err->logline = strdup(error);
   err->linelength = strlen(error);
@@ -83,11 +84,11 @@ void logerror_destroy(logerror *err) {
 //  0 if a == b
 int errorlog_cmp(logerror *a, logerror *b, int sorttype) {
   switch(sorttype) {
-    case SORT_DATE_DESC:
-      if (a->date < b->date) return 1;
-      if (a->date > b->date) return -1;
-      return 0;
     case SORT_DATE:
+      if (a->date > b->date) return 1;
+      if (a->date < b->date) return -1;
+      return 0;
+    case SORT_DATE_DESC:
       break; //Handled below
     case SORT_TYPE_DESC:
       if (a->type < b->type) return 1;
@@ -100,9 +101,9 @@ int errorlog_cmp(logerror *a, logerror *b, int sorttype) {
       if (a->type > b->type) return 1;
   }
   
-  //The oldest logs are shown first
-  if (a->date < b->date) return -1;
-  if (a->date > b->date) return 1;
+  //The newest logs are shown first
+  if (a->date > b->date) return -1;
+  if (a->date < b->date) return 1;
 
   //There could be more sort criteria, but those two almost always differ anyway.
   return 0;
@@ -183,13 +184,10 @@ void parse_php_error(logerror *err) {
   //*msg = ':'; //Restore the ':';
   while(msg != '\0' && !isalnum(*msg)) ++msg;
   err->msg = msg;
-  printf("%s\n", err->msg);
 
   char *filename = msg; 
   char *next = NULL;
   while(next = strstr(filename+1, filename_prefix)) filename = next;
-
-  printf("asdf");
 
   if (filename == msg) {
     err->type = E_UNPARSED;
