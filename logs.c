@@ -5,10 +5,13 @@
 
 //Helper functions
 void logfile_seek(FILE *logfile, int initial_row_count);
+logerror *errorlist_insert(logerror *list, logerror *ins);
+logerror *errorlist_insert_sorted(logerror *list, logerror *ins, int sorttype);
 
 logfile *logfile_create() {
   logfile *log;
   log = malloc(sizeof(logfile));
+  log->file = NULL;
 
   if (log == NULL) return NULL;
 
@@ -18,6 +21,7 @@ logfile *logfile_create() {
     return NULL;
   }
   log->errortypes = map;
+  log->errorlist = NULL;
 
   return log;
 }
@@ -88,12 +92,13 @@ int logfile_refresh(logfile *log) {
   int rowcount = 0;
   char *buffer = NULL;
   size_t n = 0;
-  size_t len = 0;
+  ssize_t len = 0;
   logerror *err;
   logerror *err_in_table;
-  while(getline(&buffer, &n, log->file) >= 0) {
+  while(len = getline(&buffer, &n, log->file)) {
+    if (len < 0) break;
     //We don't like 'em trailin newlines!
-    //if (len >= 2 && buffer[len-2] == '\n') buffer[len-2] = '\0';
+    if (len >= 1 && buffer[len-1] == '\n') buffer[len-1] = '\0';
 
     err = parse_error_line(buffer);
     if (err == NULL) continue;
@@ -101,11 +106,14 @@ int logfile_refresh(logfile *log) {
     //Get a possible duplicate entry in the hashtable
     err_in_table = ght_get(log->errortypes, err->linelength, err->logline);
     if (err_in_table == NULL) {
-      ght_insert(log->errortypes, err->logline, err->linelength, err);
+      ght_insert(log->errortypes, err, err->linelength, err->logline);
+      log->errorlist = errorlist_insert(log->errorlist, err);
     } else {
       logerror_merge(err_in_table, err);
     }
   }
+  if (buffer != NULL) free(buffer);
+
   return rowcount;
 }
 
@@ -115,7 +123,7 @@ void logfile_close(logfile *log) {
   void *p_e;
   for(p_e = ght_first(log->errortypes, &iterator, &p_key); p_e; p_e = ght_next(log->errortypes, &iterator, &p_key))
   {
-    free(p_e);
+    logerror_destroy((logerror *)p_e);
   }
   ght_finalize(log->errortypes);
 
@@ -123,36 +131,42 @@ void logfile_close(logfile *log) {
   free(log);
 }
 
-logerror **logfile_get_errors(logfile *log) {
-  static logerror **errors;
-  static size_t error_list_size = 0;
-
-  if (error_list_size == 0) {
-    errors = malloc(sizeof(logerror*) * 16);
-    if (errors == NULL) exit(EXIT_FAILURE);
-    error_list_size = 16;
-  }
-  if (error_list_size < ght_size(log->errortypes)) {
-    error_list_size *= 2;
-    errors = realloc(errors, error_list_size);
-    if (errors == NULL) exit(EXIT_FAILURE);
+logerror *errorlist_insert(logerror *list, logerror *ins) {
+  ins->next = list;
+  return ins;
+}
+logerror *errorlist_insert_sorted(logerror *list, logerror *ins, int sorttype) {
+  if (list == NULL || errorlog_cmp(list, ins, sorttype) > 0) {
+    ins->next = list;
+    return ins;
   }
   
-  ght_iterator_t iterator;
-  int i = 0;
-  const void *p_key;
-  void *p_e;
-  for(p_e = ght_first(log->errortypes, &iterator, &p_key); p_e; p_e = ght_next(log->errortypes, &iterator, &p_key))
-  {
-    logerror *err = ((logerror *)p_e);
-    if (err->count > 0) {
-      errors[i] = err;
-      ++i;
-    }
+  logerror *cur = list;
+  while(cur->next != NULL && errorlog_cmp(cur->next, ins, sorttype) <= 0) {
+    cur = cur->next;
   }
-  errors[i] = NULL;
+  ins->next = cur->next;
+  cur->next = ins;
 
-  return errors;
+  return list;
+}
+int errorlist_count(logfile *log) {
+  return ght_size(log->errortypes);
+}
+logerror *errorlist_sort(logfile *log, int sorttype) {
+  logerror *cur = log->errorlist;
+  logerror *next;
+  logerror *list = NULL;
+
+  while(cur != NULL) {
+    next = cur->next;
+    list = errorlist_insert_sorted(list, cur, sorttype);
+    cur = next;
+  }
+
+  log->errorlist = list;
+
+  return list;
 }
 
 void logfile_remove_error(logfile *log, logerror *err) {

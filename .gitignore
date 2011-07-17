@@ -5,3 +5,4 @@ Makefile
 test
 *.a
 *.swp
+*.log
