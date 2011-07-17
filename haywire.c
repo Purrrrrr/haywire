@@ -33,7 +33,6 @@ int main(int argv, char *args[]) {
   init_screen();
 
   while(1) {
-//    mvaddchstr(0,0,"Test");
     int c = getch();
     if (c == 'q') break;
     switch(c) {
@@ -125,10 +124,10 @@ void list_scroll_page(int scroll) {
 }
 void list_scroll(int scroll) {
   app.scroll += scroll;
-  if (app.scroll < 0) app.scroll = 0;
   int maxscroll = errorlist_count(app.log);
   maxscroll -= list_row_count();
   if (app.scroll > maxscroll) app.scroll = maxscroll;
+  if (app.scroll < 0) app.scroll = 0;
 }
 
 void display_logs() {
