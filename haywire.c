@@ -149,6 +149,14 @@ void display_logs() {
   //Print status elements
   clear_statusline(&app);
   bell_status_print(&app);
+  //Time
+  char timestr[40] = "";
+  time_t t = time(NULL);
+  struct tm now;
+  localtime_r(&t, &now);
+  strftime(timestr, sizeof(timestr), "%H:%M %d %b %Y - ", &now);
+  print_to_status(timestr, 0); 
+
   move(0,0);
   printw("%d-%d of %d", app.scroll+1, bottomitem, itemcount);
   
@@ -200,8 +208,8 @@ char *get_log_time(logerror *err) {
   time_t now = time(NULL);
   struct tm date;
   struct tm now_date;
-  gmtime_r(&err->date, &date);
-  gmtime_r(&now, &now_date);
+  localtime_r(&err->date, &date);
+  localtime_r(&now, &now_date);
   
   char *format = "";
   if (now < err->date + 60*60*12) {
