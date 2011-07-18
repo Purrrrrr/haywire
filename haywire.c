@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include "appstate.h"
+#include "statusline.h"
+#include "bell.h"
 #include "logs.h"
 
 #define STATUS_LINE_COUNT 2
@@ -15,10 +17,10 @@ char *filename = NULL;
 
 void init_screen();
 int list_row_count();
-void toggle_bell_type();
-void toggle_bell_level();
+void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
+void display_infobox();
 void display_logs();
 void print_error(logerror *err, int selected, int row);
 char *get_log_time(logerror *err);
@@ -37,6 +39,10 @@ int main(int argv, char *args[]) {
   while(1) {
     int c = getch();
     if (c == 'q') break;
+    
+    logfile_refresh(app.log);
+    errorlist_sort(app.log, app.sorting);
+
     switch(c) {
       case 'j': 
       case KEY_DOWN: 
@@ -54,18 +60,21 @@ int main(int argv, char *args[]) {
       list_scroll_page(-1);
       break;
       case 'B':
-      toggle_bell_type();
+      toggle_bell_type(&app);
       break;
       case 'b':
-      toggle_bell_level();
+      toggle_bell_level(&app);
+      break;
+      case 'f':
+      app.show_info = !app.show_info;
       break;
       case 'v':
       vim();
       break;
     }
-    
-    logfile_refresh(app.log);
+    display_infobox();
     display_logs();
+    ring_bells(&app);
   }
 
   endwin();
@@ -105,21 +114,11 @@ int list_row_count() {
   int x = 0;
   int maxrows = 0;
   getmaxyx(app.screen, maxrows, x);
+  if (app.show_info) maxrows -= 2;
   return maxrows - STATUS_LINE_COUNT;
 }
-void toggle_bell_type() {
-  ++app.bell_type;
-  if (app.bell_type > BELLTYPE_MAX) app.bell_type = 0;
-}
-void toggle_bell_level() {
-  switch(app.bell_level) {
-    case E_PARSE:
-    app.bell_level = E_NOTICE; break;
-    case E_NOTICE:
-    app.bell_level = E_MISSING_FILE; break;
-    case E_MISSING_FILE:
-    app.bell_level = E_PARSE; break;
-  }
+void list_select_change(int direction) {
+  
 }
 void list_scroll_page(int scroll) {
   list_scroll(scroll*list_row_count());
@@ -134,53 +133,25 @@ void list_scroll(int scroll) {
 
 void display_logs() {
   clear();
-  move(0,0);
-
-  char *bell_type = ""; 
-  switch(app.bell_type) {
-    case NO_BELL:
-    bell_type = "- No bell on new errors"; break;
-    case BELL_ON_NEW_ERROR:
-    bell_type = "- Bell on "; break;
-    case BELL_ON_NEW_ERRORTYPE:
-    bell_type = "- Bell on new types of "; break;
-  }
-  char *bell_level = ""; 
-  if (app.bell_type != NO_BELL) {
-    switch(app.bell_level) {
-      case E_PARSE:
-      bell_level = "fatal errors"; break;
-      case E_NOTICE:
-      bell_level = "PHP errors"; break;
-      case E_MISSING_FILE:
-      bell_level = "all errors"; break;
-    }
-  }
 
   int maxrows = list_row_count();
   int bottomitem = app.scroll + maxrows;
   int itemcount = errorlist_count(app.log);
   if (bottomitem > itemcount) bottomitem = itemcount;
-  printw("%d-%d of %d entries %s%s", app.scroll+1, bottomitem, itemcount, bell_type, bell_level);
+
+  //Print status elements
+  clear_statusline(&app);
+  bell_status_print(&app);
+  move(0,0);
+  printw("%d-%d/%d", app.scroll+1, bottomitem, itemcount);
   
   move(1, 0);
   printw("  TIME CNT MSG");
 
-  short bell_ringed = 0;
   int skip = app.scroll;
   int i = 0;
-  logerror *err = errorlist_sort(app.log, app.sorting);
+  logerror *err = app.log->errorlist;
   while(err != NULL) {
-    if (err->type <= app.bell_level) {
-      if (app.bell_type == BELL_ON_NEW_ERROR && err->date > app.last_error_date) {
-        bell_ringed = 1;
-      } else if (app.bell_type == BELL_ON_NEW_ERRORTYPE && err->is_new) {
-        bell_ringed = 1;
-      }
-    }
-    err->is_new = 0;
-    if (err->date > app.last_error_date) app.last_error_date = err->date;
-
     if (skip > 0) {
       --skip;
     } else if (i < maxrows) {
@@ -189,9 +160,6 @@ void display_logs() {
     }
     err = err->next;
   } 
-  if (bell_ringed) {
-    beep();
-  }
 
   refresh();
 }
@@ -230,10 +198,10 @@ char *get_log_time(logerror *err) {
   
   char *format = "";
   if (now < err->date + 60*60*12) {
-    format = "  %H:%M";
+    format = " %H:%M";
   } else if (date.tm_year == now_date.tm_year 
           && date.tm_yday == now_date.tm_yday) {
-    format = "  %H:%M";
+    format = " %H:%M";
   } else {
     format = "%d %b";
   }
@@ -241,3 +209,7 @@ char *get_log_time(logerror *err) {
   
   return buff;
 }
+void display_infobox() {
+
+}
+

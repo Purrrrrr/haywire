@@ -22,11 +22,12 @@ typedef struct {
   int sorting;
   logerror *selected;
   int scroll;
+  short show_info;
   WINDOW *screen;
 } haywire_state;
 
 //const haywire_state default_state;
-static const haywire_state default_state = {E_PARSE, BELL_ON_NEW_ERROR, 0, 10, NULL, NULL, SORT_DEFAULT, NULL, 0, NULL};
+static const haywire_state default_state = {E_PARSE, BELL_ON_NEW_ERROR, 0, 10, NULL, NULL, SORT_DEFAULT, NULL, 0, 0, NULL};
 
 int parse_arguments(haywire_state *state, int argv, char *args[]);
 void print_usage();
