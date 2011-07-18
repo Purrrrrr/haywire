@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
+#include <time.h>
 #include "appstate.h"
 #include "logs.h"
 
@@ -20,6 +21,7 @@ void list_scroll_page(int scroll);
 void list_scroll(int scroll);
 void display_logs();
 void print_error(logerror *err, int selected, int row);
+char *get_log_time(logerror *err);
 void vim();
 
 int main(int argv, char *args[]) {
@@ -161,6 +163,9 @@ void display_logs() {
   if (bottomitem > itemcount) bottomitem = itemcount;
   printw("%d-%d of %d entries %s%s", app.scroll+1, bottomitem, itemcount, bell_type, bell_level);
   
+  move(1, 0);
+  printw("  TIME CNT MSG");
+
   short bell_ringed = 0;
   int skip = app.scroll;
   int i = 0;
@@ -210,10 +215,29 @@ void print_error(logerror *err, int selected, int row) {
   if (selected) standout();
 
   move(row, 0);
-  printw("%3dx %s: %s:%d\n", err->count, err->msg, filename, err->linenr);
+  printw("%s %3d %s: %s:%d\n", get_log_time(err), err->count, err->msg, filename, err->linenr);
 
   if (selected) standend();
   attroff(COLOR_PAIR(color));
-
-
+}
+char *get_log_time(logerror *err) {
+  static char buff[7] = "";
+  time_t now = time(NULL);
+  struct tm date;
+  struct tm now_date;
+  gmtime_r(&err->date, &date);
+  gmtime_r(&now, &now_date);
+  
+  char *format = "";
+  if (now < err->date + 60*60*12) {
+    format = "  %H:%M";
+  } else if (date.tm_year == now_date.tm_year 
+          && date.tm_yday == now_date.tm_yday) {
+    format = "  %H:%M";
+  } else {
+    format = "%d %b";
+  }
+  strftime(buff, sizeof(buff), format, &date); 
+  
+  return buff;
 }
