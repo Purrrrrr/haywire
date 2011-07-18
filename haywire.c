@@ -5,7 +5,7 @@
 #include "appstate.h"
 #include "logs.h"
 
-#define STATUS_LINE_COUNT 1
+#define STATUS_LINE_COUNT 2
 haywire_state app;
 
 //Helper buffers
@@ -178,8 +178,8 @@ void display_logs() {
 
     if (skip > 0) {
       --skip;
-    } else {
-      print_error(err, 0, i+1);
+    } else if (i < maxrows) {
+      print_error(err, 0, i+2);
       ++i;
     }
     err = err->next;
