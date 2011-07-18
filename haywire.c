@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include "appstate.h"
-#include "statusline.h"
-#include "bell.h"
 #include "logs.h"
 
 #define STATUS_LINE_COUNT 2
@@ -65,6 +63,14 @@ int main(int argv, char *args[]) {
       break;
       case 'b':
       toggle_bell_level(&app);
+      break;
+      case 'o':
+      toggle_sort_type(&app);
+      errorlist_sort(app.log, app.sorting);
+      break;
+      case 'O':
+      toggle_sort_direction(&app);
+      errorlist_sort(app.log, app.sorting);
       break;
       case 'f':
       app.show_info = !app.show_info;
@@ -142,23 +148,7 @@ void display_logs() {
   clear();
 
   int maxrows = list_row_count();
-  int bottomitem = app.scroll + maxrows;
-  int itemcount = errorlist_count(app.log);
-  if (bottomitem > itemcount) bottomitem = itemcount;
-
-  //Print status elements
-  clear_statusline(&app);
-  bell_status_print(&app);
-  //Time
-  char timestr[40] = "";
-  time_t t = time(NULL);
-  struct tm now;
-  localtime_r(&t, &now);
-  strftime(timestr, sizeof(timestr), "%H:%M %d %b %Y - ", &now);
-  print_to_status(timestr, 0); 
-
-  move(0,0);
-  printw("%d-%d of %d", app.scroll+1, bottomitem, itemcount);
+  print_statusline(&app, maxrows);
   
   move(1, 0);
   printw("  TIME CNT MSG");

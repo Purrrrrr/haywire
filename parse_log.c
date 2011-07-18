@@ -23,7 +23,7 @@ logerror *parse_error_line(const char *line) {
   tm.tm_mon = 0;
   tm.tm_year = 0;
   tm.tm_wday = 0;
-  tm.tm_isdst = 0;
+  tm.tm_isdst = -1;
 
   line = strptime(line, "[%a %b %d %T %Y] ", &tm);
   if (line == NULL) return NULL;
@@ -82,15 +82,15 @@ void logerror_destroy(logerror *err) {
 // -1 if a < b
 //  1 if a > b
 //  0 if a == b
-int errorlog_cmp(logerror *a, logerror *b, int sorttype) {
+int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
   switch(sorttype) {
     case SORT_DATE:
+      break; //Handled below
+    case SORT_DATE_REVERSE:
       if (a->date > b->date) return 1;
       if (a->date < b->date) return -1;
       return 0;
-    case SORT_DATE_DESC:
-      break; //Handled below
-    case SORT_TYPE_DESC:
+    case SORT_TYPE_REVERSE:
       if (a->type < b->type) return 1;
       if (a->type > b->type) return -1;
       break;

@@ -6,11 +6,7 @@ add_executable(haywire haywire.c)
 target_link_libraries (haywire ncurses)
 target_link_libraries (haywire logs)
 target_link_libraries (haywire appstate)
-target_link_libraries (haywire statusline)
-target_link_libraries (haywire bell)
 
-add_library(statusline statusline.c)
-add_library(bell bell.c)
 
 add_executable(test test.c)
 target_link_libraries (test logs)

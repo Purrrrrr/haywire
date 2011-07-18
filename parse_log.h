@@ -10,9 +10,9 @@
 
 #define SORT_DEFAULT 1
 #define SORT_TYPE 1
-#define SORT_TYPE_DESC -1
+#define SORT_TYPE_REVERSE -1
 #define SORT_DATE 2
-#define SORT_DATE_DESC -2
+#define SORT_DATE_REVERSE -2
 #define SORT_MAX 2
 
 typedef struct logerror {
@@ -30,7 +30,7 @@ typedef struct logerror {
 
 logerror *parse_error_line(const char *line);
 int logerror_merge(logerror *this, logerror *that);
-int errorlog_cmp(logerror *a, logerror *b, int sorttype);
+int errorlog_cmp(logerror *a, logerror *b, short sorttype);
 char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t *n);
 void logerror_destroy(logerror *err);
 
