@@ -163,6 +163,7 @@ char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t
 }
 
 static const char *filename_prefix = " in ";
+static const char *filename_prefix_exceptions = " thrown";
 static const char *linenr_prefix = " on line ";
 
 void parse_php_error(logerror *err) {
@@ -181,6 +182,7 @@ void parse_php_error(logerror *err) {
   } else {
     return;
   }
+
   //*msg = ':'; //Restore the ':';
   while(msg != '\0' && !isalnum(*msg)) ++msg;
   err->msg = msg;
@@ -194,6 +196,9 @@ void parse_php_error(logerror *err) {
     return;
   }
   
+  char *test = filename-strlen(filename_prefix_exceptions);
+  if (strstr(test, filename_prefix_exceptions) == test) filename = test;
+
   *filename = '\0'; //End the msg string. 
   err->filename = filename + strlen(filename_prefix);
 
