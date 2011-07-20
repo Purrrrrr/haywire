@@ -2,11 +2,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "appstate.h"
 #include "logs.h"
 
 #define STATUS_LINE_COUNT 2
+#define MAX_LINE_LEN 256
 haywire_state app;
 int infobox_size = 0;
 
@@ -45,11 +47,11 @@ int main(int argv, char *args[]) {
     switch(c) {
       case 'j': 
       case KEY_DOWN: 
-      list_select_change(1);
+      app.show_info ? list_select_change(1) : list_scroll(1);
       break;
       case 'k': 
       case KEY_UP: 
-      list_select_change(-1);
+      app.show_info ? list_select_change(-1) : list_scroll(-1);
       break;
       case ' ':
       case KEY_NPAGE: 
@@ -72,6 +74,7 @@ int main(int argv, char *args[]) {
       toggle_sort_direction(&app);
       errorlist_sort(app.log, app.sorting);
       break;
+      case 'i':
       case 'f':
       app.show_info = !app.show_info;
       break;
@@ -79,6 +82,7 @@ int main(int argv, char *args[]) {
       vim();
       break;
     }
+    clear();
     display_infobox();
     display_logs();
     ring_bells(&app);
@@ -144,14 +148,46 @@ void list_scroll(int scroll) {
   if (app.scroll < 0) app.scroll = 0;
 }
 
+void display_infobox() {
+  infobox_size = 0;
+  if (!app.show_info || app.selected == NULL) return;
+  
+  int cols,rows;
+  cols=rows=0;
+  getmaxyx(app.screen, rows, cols);
+  
+  size_t msg_length = strlen(app.selected->msg);
+  size_t filename_length = strlen(app.selected->filename);
+  size_t linenr_length = 1;
+  int i = app.selected->linenr;
+  while(i > 10) { i /= 10; ++linenr_length; }
+
+  infobox_size = 1+(msg_length/cols + 1)+((filename_length+linenr_length+1)/cols + 1);
+  
+  int y = rows-infobox_size;
+  move(y, 0);
+  standout();
+  hline(' ', cols);
+  mvprintw(y, 0, " Selected message:");
+  standend();
+
+  mvprintw(++y, 0, "%s", app.selected->msg);
+  y += (msg_length/cols + 1);
+  mvprintw(y, 0, "%s:%d", app.selected->filename, app.selected->linenr);
+  printw("%d", infobox_size);
+
+}
+
 void display_logs() {
-  clear();
 
   int maxrows = list_row_count();
   print_statusline(&app, maxrows);
   
   move(1, 0);
+  standout();
+  hline(' ', getmaxx(app.screen));
   printw("  TIME CNT MSG");
+  standend();
 
   int skip = app.scroll;
   int i = 0;
@@ -160,7 +196,7 @@ void display_logs() {
     if (skip > 0) {
       --skip;
     } else if (i < maxrows) {
-      print_error(err, err == app.selected, i+2);
+      print_error(err, app.show_info && err == app.selected, i+2);
       ++i;
     }
     err = err->next;
@@ -171,6 +207,7 @@ void display_logs() {
 void print_error(logerror *err, int selected, int row) {
   logerror_nicepath(err, app.relative_path, &filename, &filename_len);
   short color = 0;
+  char linebuffer[MAX_LINE_LEN] = "";
 
   switch(err->type) {
     case E_ERROR:
@@ -187,8 +224,9 @@ void print_error(logerror *err, int selected, int row) {
   attron(COLOR_PAIR(color));
   if (selected) standout();
 
+  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d", get_log_time(err), err->count, err->msg, filename, err->linenr);
   move(row, 0);
-  printw("%s %3d %s: %s:%d\n", get_log_time(err), err->count, err->msg, filename, err->linenr);
+  addnstr(linebuffer, getmaxx(app.screen));
 
   if (selected) standend();
   attroff(COLOR_PAIR(color));
@@ -214,10 +252,6 @@ char *get_log_time(logerror *err) {
   
   return buff;
 }
-void display_infobox() {
-  infobox_size = 0;
-}
-
 void vim() {
   endwin();
   system("vim");
@@ -231,6 +265,7 @@ void init_screen() {
   halfdelay(app.update_delay);
   keypad(app.screen, TRUE);
   clear();
+  curs_set(0);
 
   if(has_colors() == FALSE) {
     endwin();
