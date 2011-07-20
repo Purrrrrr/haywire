@@ -39,12 +39,17 @@ int main(int argv, char *args[]) {
   //Init display
   init_screen();
 
+  logfile_refresh(app.log);
+  errorlist_sort(app.log, app.sorting);
+  select_nth(&app, 0);
+
   while(1) {
     int c = getch();
     if (c == 'q') break;
     
     logfile_refresh(app.log);
     errorlist_sort(app.log, app.sorting);
+    //clear();
 
     switch(c) {
       case 'j': 
@@ -98,7 +103,6 @@ int main(int argv, char *args[]) {
       vim(app.selected);
       break;
     }
-    clear();
     display_infobox();
     display_logs();
     ring_bells(&app);
@@ -118,40 +122,26 @@ int list_row_count() {
 void list_select_change(int direction) {
   logerror *err = app.log->errorlist;
   int rows = list_row_count();
-  int n = 1;
 
   if (app.selected == NULL) {
     app.selected = err;
     return;
   }
 
+  int n = get_selected(&app);
   if (direction > 0) {
-    while(err != NULL) {
-      if (err == app.selected) {
-        if (err->next == NULL) return;
-        app.selected = err->next;
-        goto end;
-      }
+    if (app.selected->next != NULL) {
       ++n;
-      err = err->next;
+      app.selected = app.selected->next;
     }
   } else {
-    if (err == app.selected) return;
-    n = 0;
-    while(err != NULL) {
-      if (err->next == app.selected) {
-        app.selected = err;
-        goto end;
-      }
-      ++n;
-      err = err->next;
-    }
-    app.selected = app.log->errorlist;
-
-    end:
-    if (n >= app.scroll + rows) list_scroll(n-app.scroll-rows+1);
-    if (n <= app.scroll) list_scroll(n-app.scroll);
+    if (n == 0) goto end;
+    --n;
+    select_nth(&app, n);
   }
+  end:
+  if (n+1 >= app.scroll + rows) list_scroll(n-app.scroll-rows+1);
+  if (n <= app.scroll) list_scroll(n-app.scroll);
 }
 void list_scroll_page(int scroll) {
   list_scroll(scroll*list_row_count());
@@ -159,9 +149,15 @@ void list_scroll_page(int scroll) {
 void list_scroll(int scroll) {
   app.scroll += scroll;
   int maxscroll = errorlist_count(app.log);
-  maxscroll -= list_row_count();
+  int rows = list_row_count();
+  maxscroll -= rows;
   if (app.scroll > maxscroll) app.scroll = maxscroll;
   if (app.scroll < 0) app.scroll = 0;
+  if (app.selected != NULL) {
+    int n = get_selected(&app);
+    if (n >= app.scroll + rows) select_nth(&app, app.scroll+rows-1);
+    if (n < app.scroll) select_nth(&app, app.scroll);
+  }
 }
 
 void display_infobox() {
@@ -231,12 +227,12 @@ int str_linecount(char *str, int linelen, int *x) {
 void display_logs() {
 
   int maxrows = list_row_count();
-  print_statusline(&app, maxrows);
+  //print_statusline(&app, maxrows);
   
   move(1, 0);
   standout();
   hline(' ', getmaxx(app.screen));
-  printw("  TIME CNT MSG");
+  printw("  TIME CNT MSG %d", get_selected(&app));
   standend();
 
   int skip = app.scroll;

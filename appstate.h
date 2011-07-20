@@ -42,4 +42,7 @@ void toggle_bell_type(haywire_state *app);
 void toggle_bell_level(haywire_state *app);
 void ring_bells(haywire_state *app);
 
+int get_selected(haywire_state *app);
+void select_nth(haywire_state *app, int n);
+
 #endif

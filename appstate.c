@@ -210,3 +210,23 @@ void bell_status_print(haywire_state *app) {
     print_to_status("BELL: NONE", 0);
   }
 }
+
+int get_selected(haywire_state *app) {
+  logerror *err = app->log->errorlist;
+  int n = 0;
+  while(err != app->selected) {
+    if (err == NULL) return -1;
+    ++n;
+    err = err->next;
+  }
+  return n;
+}
+void select_nth(haywire_state *app, int n) {
+  logerror *err = app->log->errorlist;
+  while(n > 0) {
+    if (err == NULL) break;
+    err = err->next;
+    n--;
+  }
+  app->selected = err;
+}
