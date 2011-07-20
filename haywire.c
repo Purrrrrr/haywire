@@ -9,7 +9,7 @@
 
 #define STATUS_LINE_COUNT 2
 #define MAX_LINE_LEN 256
-#define MAX_LINE_LEN 256
+
 haywire_state app;
 int infobox_size = 0;
 
@@ -22,6 +22,7 @@ int list_row_count();
 void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
+int str_linecount(char *str, int linelen, int *x);
 void display_infobox();
 void display_logs();
 void print_error(logerror *err, int selected, int row);
@@ -171,27 +172,60 @@ void display_infobox() {
   cols=rows=0;
   getmaxyx(app.screen, rows, cols);
   
-  size_t msg_length = strlen(app.selected->msg);
-  size_t filename_length = strlen(app.selected->filename);
+  int x = 0;
+  size_t msg_lines = str_linecount(app.selected->msg, cols, &x);
+  x = 0;
+  size_t filename_lines = str_linecount(app.selected->filename, cols, &x);
   size_t linenr_length = 1;
   int i = app.selected->linenr;
   while(i > 10) { i /= 10; ++linenr_length; }
+  if (x + linenr_length + 1 > cols) ++filename_lines;
 
-  infobox_size = 1+(msg_length/cols + 1)+((filename_length+linenr_length+1)/cols + 1);
+  infobox_size = 1+msg_lines+filename_lines;
   
   int y = rows-infobox_size;
   move(y, 0);
   standout();
   hline(' ', cols);
   mvprintw(y, 0, " Selected message:");
-  mvprintw(y, cols-23, " (toggle info using i)");
+  mvprintw(y, cols-23, " (Toggle info using i)");
   standend();
 
-  mvprintw(++y, 0, "%s", app.selected->msg);
-  y += (msg_length/cols + 1);
+  move(++y, 0);
+  char *msg = app.selected->msg;
+  while(*msg != '\0') {
+    if (msg[0] == '\\' && msg[1] == 'n') {
+      addch('\n');
+      ++msg;
+    } else addch(*msg);
+    ++msg;
+  }
+ 
+  y += msg_lines;
   mvprintw(y, 0, "%s:%d", app.selected->filename, app.selected->linenr);
   printw("%d", infobox_size);
 
+}
+int str_linecount(char *str, int linelen, int *x) {
+  int lines = 1;
+  while(*str != '\0') {
+    if (str[0] == '\\' && str[1] == 'n') {
+      ++lines;
+      ++str;
+      *x = 0;
+    } else if (*str == '\n') {
+      ++lines;
+      *x = 0;
+    } else {
+      ++(*x);
+      if (*x >= linelen) {
+        ++lines;
+        *x = 0;
+      }
+    }
+    ++str;
+  }
+  return lines;
 }
 
 void display_logs() {
