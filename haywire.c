@@ -9,6 +9,7 @@
 
 #define STATUS_LINE_COUNT 2
 #define MAX_LINE_LEN 256
+#define MAX_LINE_LEN 256
 haywire_state app;
 int infobox_size = 0;
 
@@ -25,7 +26,7 @@ void display_infobox();
 void display_logs();
 void print_error(logerror *err, int selected, int row);
 char *get_log_time(logerror *err);
-void vim();
+void vim(logerror *err);
 
 int main(int argv, char *args[]) {
   app = default_state;
@@ -77,9 +78,23 @@ int main(int argv, char *args[]) {
       case 'i':
       case 'f':
       app.show_info = !app.show_info;
+      if (app.show_info) {
+        logerror *err = app.log->errorlist;
+        int i = app.scroll;
+        while(i > 0 && err != NULL) {
+          i--;
+          err = err->next;
+        }
+        app.selected = err;
+      } else {
+        app.selected = NULL;
+      }
       break;
       case 'v':
-      vim();
+      case '\r':
+      case '\n':
+      case KEY_ENTER:
+      vim(app.selected);
       break;
     }
     clear();
@@ -169,6 +184,7 @@ void display_infobox() {
   standout();
   hline(' ', cols);
   mvprintw(y, 0, " Selected message:");
+  mvprintw(y, cols-23, " (toggle info using i)");
   standend();
 
   mvprintw(++y, 0, "%s", app.selected->msg);
@@ -224,7 +240,7 @@ void print_error(logerror *err, int selected, int row) {
   attron(COLOR_PAIR(color));
   if (selected) standout();
 
-  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d", get_log_time(err), err->count, err->msg, filename, err->linenr);
+  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d %*s", get_log_time(err), err->count, err->msg, filename, err->linenr, (int)(sizeof(linebuffer)), "");
   move(row, 0);
   addnstr(linebuffer, getmaxx(app.screen));
 
@@ -252,9 +268,25 @@ char *get_log_time(logerror *err) {
   
   return buff;
 }
-void vim() {
+void vim(logerror *err) {
+  if (err == NULL) return;
   endwin();
-  system("vim");
+  
+  pid_t id = fork();
+  if (id == 0) {
+    if (err->linenr >= 0) {
+      char linenr[64] = "";
+      snprintf(linenr, sizeof(linenr), "+%d", err->linenr);
+      execlp("vim", "vim", linenr, err->filename ,NULL );
+    } else {
+      execlp("vim", "vim", err->filename ,NULL );
+    }
+    exit(EXIT_FAILURE);
+  } else if (id != -1) {
+    int status = 0;
+    wait(&status);
+  }
+
   init_screen();
 }
 

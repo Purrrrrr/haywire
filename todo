@@ -1,4 +1,5 @@
 * Parse times with correct timezone
 * Ordering entries
-Sideways scroll? Infobox?
+* Sideways scroll? Infobox?
+* Support opening in vim
 Support colorless terminals
