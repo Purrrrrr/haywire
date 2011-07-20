@@ -43,13 +43,16 @@ int main(int argv, char *args[]) {
   errorlist_sort(app.log, app.sorting);
   select_nth(&app, 0); */
 
+  unsigned long last_lines = 0;
+
   while(1) {
     int c = getch();
     if (c == 'q') break;
     
     logfile_refresh(app.log);
-    errorlist_sort(app.log, app.sorting);
-    //clear();
+    if (app.log->inspected_lines > last_lines) {
+      errorlist_sort(app.log, app.sorting);
+    }
 
     switch(c) {
       case 'j': 
@@ -103,6 +106,8 @@ int main(int argv, char *args[]) {
       vim(app.selected);
       break;
     }
+
+    clear();
     display_infobox();
     display_logs();
     ring_bells(&app);
@@ -232,7 +237,7 @@ void display_logs() {
   move(1, 0);
   standout();
   hline(' ', getmaxx(app.screen));
-  printw("  TIME CNT MSG %d", get_selected(&app));
+  printw("  TIME CNT MSG");
   standend();
 
   int skip = app.scroll;
@@ -244,6 +249,8 @@ void display_logs() {
     } else if (i < maxrows) {
       print_error(err, app.show_info && err == app.selected, i+2);
       ++i;
+    } else {
+      break;
     }
     err = err->next;
   } 

@@ -95,6 +95,7 @@ int logfile_refresh(logfile *log) {
   ssize_t len = 0;
   logerror *err;
   logerror *err_in_table;
+
   while(len = getline(&buffer, &n, log->file)) {
     if (len < 0) break;
     //We don't like 'em trailin newlines!
@@ -102,6 +103,8 @@ int logfile_refresh(logfile *log) {
 
     err = parse_error_line(buffer);
     if (err == NULL) continue;
+
+    ++log->inspected_lines;
     
     //Get a possible duplicate entry in the hashtable
     err_in_table = ght_get(log->errortypes, err->linelength, err->logline);

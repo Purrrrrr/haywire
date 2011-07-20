@@ -12,6 +12,7 @@ typedef struct logfile {
   ght_hash_table_t *errortypes;
   logerror *errorlist;
   unsigned int empty_entries;
+  unsigned long inspected_lines;
 } logfile;
 
 //Opens a log file and digs and sorts the log entries
