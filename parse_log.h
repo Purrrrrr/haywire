@@ -13,7 +13,9 @@
 #define SORT_TYPE_REVERSE -1
 #define SORT_DATE 2
 #define SORT_DATE_REVERSE -2
-#define SORT_MAX 2
+#define SORT_COUNT 3
+#define SORT_COUNT_REVERSE -3
+#define SORT_MAX 3
 
 typedef struct logerror {
   time_t date;

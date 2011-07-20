@@ -90,12 +90,20 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
       if (a->date > b->date) return 1;
       if (a->date < b->date) return -1;
       return 0;
+    case SORT_COUNT:
+      if (a->count < b->count) return 1;
+      if (a->count > b->count) return -1;
+      break;
+    case SORT_COUNT_REVERSE:
+      if (a->count < b->count) return -1;
+      if (a->count > b->count) return 1;
+      break;
     case SORT_TYPE_REVERSE:
       if (a->type < b->type) return 1;
       if (a->type > b->type) return -1;
       break;
-    case SORT_TYPE:
     default:
+      //case SORT_TYPE:
       //The most small numbered types are the most important
       if (a->type < b->type) return -1;
       if (a->type > b->type) return 1;

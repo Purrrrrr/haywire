@@ -39,9 +39,9 @@ int main(int argv, char *args[]) {
   //Init display
   init_screen();
 
-  logfile_refresh(app.log);
+/*  logfile_refresh(app.log);
   errorlist_sort(app.log, app.sorting);
-  select_nth(&app, 0);
+  select_nth(&app, 0); */
 
   while(1) {
     int c = getch();
@@ -227,7 +227,7 @@ int str_linecount(char *str, int linelen, int *x) {
 void display_logs() {
 
   int maxrows = list_row_count();
-  //print_statusline(&app, maxrows);
+  print_statusline(&app, maxrows);
   
   move(1, 0);
   standout();

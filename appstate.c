@@ -141,6 +141,8 @@ void order_status_print(haywire_state *app) {
     print_to_status("ERRORTYPE", 0); break;
     case SORT_DATE:
     print_to_status("DATE", 0); break;
+    case SORT_COUNT:
+    print_to_status("COUNT", 0); break;
 
   }
   print_to_status("SORT: ", 0); 
