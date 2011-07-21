@@ -11,7 +11,7 @@ int main(int argv, char *args[]) {
   if (!parse_arguments(&app, argv, args)) print_usage();
   
   logfile *log = app.log;
-  logerror *err = errorlist_sort(log, SORT_DEFAULT);
+  logerror *err = log->errorlist;
 
   size_t filename_len = 256;
   char *filename = malloc(filename_len);

@@ -19,7 +19,6 @@ typedef struct {
   int update_delay;
   char *relative_path;
   logfile *log;
-  short sorting;
   logerror *selected;
   int scroll;
   short show_info;
@@ -27,16 +26,24 @@ typedef struct {
 } haywire_state;
 
 //const haywire_state default_state;
-static const haywire_state default_state = {E_PARSE, BELL_ON_NEW_ERROR, 0, 10, NULL, NULL, SORT_DEFAULT, NULL, 0, 1, NULL};
+static const haywire_state default_state = {
+    E_PARSE,
+    BELL_ON_NEW_ERROR,
+    0, //Last error date
+    10, //Update delay
+    NULL, //Relative path
+    NULL, //Log
+    NULL, //Selected entry
+    0, //Scroll
+    1, //Show_info
+    NULL //Screen
+};
 
 int parse_arguments(haywire_state *state, int argv, char *args[]);
 void print_usage();
 
 void print_statusline(haywire_state *app, int maxrows);
 void print_to_status(char *msg, short color);
-
-void toggle_sort_type(haywire_state *app);
-void toggle_sort_direction(haywire_state *app);
 
 void toggle_bell_type(haywire_state *app);
 void toggle_bell_level(haywire_state *app);

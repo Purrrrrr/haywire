@@ -50,6 +50,7 @@ logerror *parse_error_line(const char *line) {
   err->filename = err->logline;
   err->linenr = 0;
   err->type = E_UNPARSED;
+  err->prev = NULL;
   err->next = NULL;
 
   if (err->logline == NULL) {
@@ -83,6 +84,9 @@ void logerror_destroy(logerror *err) {
 //  1 if a > b
 //  0 if a == b
 int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
+  //Deleted entries always go to the bottom
+  if (a->count == 0) return -1;
+  if (b->count == 0) return 1;
   switch(sorttype) {
     case SORT_DATE:
       break; //Handled below

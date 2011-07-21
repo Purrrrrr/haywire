@@ -114,24 +114,9 @@ void time_status_print() {
   print_to_status(timestr, 0); 
 }
 
-//Ordering functions
-void toggle_sort_direction(haywire_state *app) {
-  app->sorting = -app->sorting;
-}
-void toggle_sort_type(haywire_state *app) {
-  short sort = app->sorting;
-  if (sort > 0) {
-    ++sort;
-    if (sort > SORT_MAX) sort = 1;
-  } else {
-    --sort;
-    if (sort < -SORT_MAX) sort = -1;
-  }
-  app->sorting = sort;
-}
 void order_status_print(haywire_state *app) {
   print_to_status(" ", 0); 
-  int sort = app->sorting;
+  int sort = app->log->sorting;
   if (sort < 0) {
     print_to_status(" REVERSED", 0);
     sort = -sort;
@@ -164,24 +149,14 @@ void toggle_bell_level(haywire_state *app) {
   }
 }
 void ring_bells(haywire_state *app) {
-  short bell_ringed = 0;
-  logerror *err = app->log->errorlist;
-
-  while(err != NULL) {
-    if (err->type <= app->bell_level) {
-      if (app->bell_type == BELL_ON_NEW_ERROR && err->date > app->last_error_date) {
-        bell_ringed = 1;
-      } else if (app->bell_type == BELL_ON_NEW_ERRORTYPE && err->is_new) {
-        bell_ringed = 1;
-      }
-    }
-    err->is_new = 0;
-    if (err->date > app->last_error_date) app->last_error_date = err->date;
-    err = err->next;
-  }
-  if (bell_ringed) {
+  logfile *log = app->log;
+  if (app->bell_type == BELL_ON_NEW_ERROR && log->worst_new_line && log->worst_new_line <= app->bell_level) {
+    beep();
+  } else if (app->bell_type == BELL_ON_NEW_ERRORTYPE && log->worst_new_type && log->worst_new_type <= app->bell_level) {
     beep();
   }
+  log->worst_new_line = 0;
+  log->worst_new_type = 0;
 }
 void bell_status_print(haywire_state *app) {
   char *errtype = NULL;

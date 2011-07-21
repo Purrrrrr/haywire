@@ -40,7 +40,7 @@ int main(int argv, char *args[]) {
   init_screen();
 
 /*  logfile_refresh(app.log);
-  errorlist_sort(app.log, app.sorting);
+  errorlist_sort(app.log, app.log->sorting);
   select_nth(&app, 0); */
 
   unsigned long last_lines = 0;
@@ -50,9 +50,6 @@ int main(int argv, char *args[]) {
     if (c == 'q') break;
     
     logfile_refresh(app.log);
-    if (app.log->inspected_lines > last_lines) {
-      errorlist_sort(app.log, app.sorting);
-    }
 
     switch(c) {
       case 'j': 
@@ -77,12 +74,10 @@ int main(int argv, char *args[]) {
       toggle_bell_level(&app);
       break;
       case 'o':
-      toggle_sort_type(&app);
-      errorlist_sort(app.log, app.sorting);
+      toggle_sort_type(app.log);
       break;
       case 'O':
-      toggle_sort_direction(&app);
-      errorlist_sort(app.log, app.sorting);
+      toggle_sort_direction(app.log);
       break;
       case 'i':
       case 'f':

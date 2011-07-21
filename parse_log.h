@@ -20,13 +20,14 @@
 typedef struct logerror {
   time_t date;
   short is_new;
-  int type;
+  short type;
   int count;
   char *logline; //The whole log line, can contain null characters
   size_t linelength; //The length of the line
   char *msg; //Null terminated log message
   char *filename; //Null terminated filename
   int linenr;
+  struct logerror *prev;
   struct logerror *next;
 } logerror;
 

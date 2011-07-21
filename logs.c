@@ -1,12 +1,13 @@
 #include "logs.h"
-#include "parse_log.c"
-
+#include "parse_log.h"
 #define SEEK_BUFFER_SIZE 1024
 
 //Helper functions
 void logfile_seek(FILE *logfile, int initial_row_count);
+void errorlist_remove_error(logerror *err);
 logerror *errorlist_insert(logerror *list, logerror *ins);
-logerror *errorlist_insert_sorted(logerror *list, logerror *ins, int sorttype);
+logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype);
+logerror *errorlist_sort(logerror *list, int sorttype);
 
 logfile *logfile_create() {
   logfile *log;
@@ -22,6 +23,9 @@ logfile *logfile_create() {
   }
   log->errortypes = map;
   log->errorlist = NULL;
+  log->sorting = SORT_DEFAULT;
+  log->worst_new_line = 0;
+  log->worst_new_type = 0;
 
   return log;
 }
@@ -95,6 +99,7 @@ int logfile_refresh(logfile *log) {
   ssize_t len = 0;
   logerror *err;
   logerror *err_in_table;
+  logerror *newlist = NULL;
 
   while(len = getline(&buffer, &n, log->file)) {
     if (len < 0) break;
@@ -103,17 +108,27 @@ int logfile_refresh(logfile *log) {
 
     err = parse_error_line(buffer);
     if (err == NULL) continue;
-
-    ++log->inspected_lines;
+    if (!log->worst_new_line || log->worst_new_line > err->type) log->worst_new_line = err->type;
     
     //Get a possible duplicate entry in the hashtable
     err_in_table = ght_get(log->errortypes, err->linelength, err->logline);
     if (err_in_table == NULL) {
       ght_insert(log->errortypes, err, err->linelength, err->logline);
-      log->errorlist = errorlist_insert(log->errorlist, err);
+      newlist = errorlist_insert(newlist, err);
+      if (!log->worst_new_type || log->worst_new_type > err->type) log->worst_new_type = err->type;
     } else {
       logerror_merge(err_in_table, err);
+      if (err_in_table->is_new == 0) {
+        errorlist_remove_error(err_in_table);
+        newlist = errorlist_insert(newlist, err_in_table);
+      }
+      err_in_table->is_new = 1;
     }
+  }
+  if (newlist != NULL) {
+    newlist = errorlist_sort(newlist, log->sorting);
+    //printf("Sorted, final merge");
+    log->errorlist = errorlist_merge(log->errorlist, newlist, log->sorting);
   }
   if (buffer != NULL) free(buffer);
 
@@ -134,45 +149,106 @@ void logfile_close(logfile *log) {
   free(log);
 }
 
+int errorlist_count(logfile *log) {
+  return ght_size(log->errortypes) - log->empty_entries;
+} 
 logerror *errorlist_insert(logerror *list, logerror *ins) {
+  //printf("Insert %d\n", ins);
+  if (list != NULL) {
+    list->prev = ins;
+  }
+  ins->prev = NULL;
   ins->next = list;
   return ins;
 }
-logerror *errorlist_insert_sorted(logerror *list, logerror *ins, int sorttype) {
-  if (list == NULL || errorlog_cmp(list, ins, sorttype) > 0) {
-    ins->next = list;
-    return ins;
+void errorlist_remove_error(logerror *err) {
+  //printf("Remove %d\n", err);
+  if (err->prev != NULL) {
+    err->prev->next = err->next;
   }
-  
-  logerror *cur = list;
-  while(cur->next != NULL && errorlog_cmp(cur->next, ins, sorttype) <= 0) {
-    cur = cur->next;
+  if (err->next != NULL) {
+    err->next->prev= err->prev;
   }
-  ins->next = cur->next;
-  cur->next = ins;
-
-  return list;
 }
-int errorlist_count(logfile *log) {
-  return ght_size(log->errortypes);
-}
-logerror *errorlist_sort(logfile *log, int sorttype) {
-  logerror *cur = log->errorlist;
-  logerror *next;
+logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype) {
+  logerror *cur = NULL;
   logerror *list = NULL;
+  logerror *lesser = NULL;
+  //printf("Merge\n");
 
-  while(cur != NULL) {
-    next = cur->next;
-    list = errorlist_insert_sorted(list, cur, sorttype);
-    cur = next;
+  if (list1 == NULL) return list2;
+  if (list2 == NULL) return list1; 
+
+  while(list1 != NULL && list2 != NULL) {
+
+    if (errorlog_cmp(list1, list2, sorttype) < 0) { //list1 < list2
+      lesser = list1;
+    } else {
+      lesser = list2;
+    }
+
+    if (cur == NULL) {
+      list = cur = lesser;
+    } else {
+      cur->next = lesser;
+      lesser->prev = cur;
+      cur = lesser;
+    }
+    if (lesser == list1) {
+      list1 = lesser->next;
+    } else {
+      list2 = lesser->next;
+    }
+    lesser->next = NULL;
   }
-
-  log->errorlist = list;
+  if (list1 != NULL) {
+    cur->next = list1;
+    list1->prev = cur;
+  } else if (list2 != NULL) {
+    cur->next = list2;
+    list2->prev = cur;
+  }
 
   return list;
 }
+logerror *errorlist_sort(logerror *err, int sorttype) {
+  if (err->next == NULL) return err;
+  //printf("Sort! %d\n", err);
+
+  logerror *middle = err;
+  logerror *last = err;
+  while(last != NULL) {
+    middle = middle->next;
+    last = last->next;
+    if (last != NULL) last = last->next;
+  }
+  middle->prev->next = NULL;  
+
+  err = errorlist_sort(err, sorttype);
+  middle = errorlist_sort(middle, sorttype);
+
+  return errorlist_merge(err, middle, sorttype);
+} 
 
 void logfile_remove_error(logfile *log, logerror *err) {
   ++log->empty_entries;
   err->count = 0;
+}
+
+//Ordering functions
+void toggle_sort_direction(logfile *log) {
+  log->sorting = -log->sorting;
+  log->errorlist = errorlist_sort(log->errorlist, log->sorting);
+}
+void toggle_sort_type(logfile *log) {
+  short sort = log->sorting;
+  if (sort > 0) {
+    ++sort;
+    if (sort > SORT_MAX) sort = 1;
+  } else {
+    --sort;
+    if (sort < -SORT_MAX) sort = -1;
+  }
+  log->sorting = sort;
+  log->errorlist = errorlist_sort(log->errorlist, sort);
 }
