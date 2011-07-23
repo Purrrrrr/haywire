@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 add_definitions(-std=gnu99 -pedantic -g)
+add_definitions(`getconf LFS_CFLAGS` -D_LARGEFILE64_SOURCE)
+add_definitions(`getconf LFS_LDFLAGS`)
 project (haywire)
 
 add_executable(haywire haywire.c)

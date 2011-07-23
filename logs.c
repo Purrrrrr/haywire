@@ -46,24 +46,24 @@ int logfile_add_file(logfile *log, char *filename, int initial_row_count) {
 
 void logfile_seek(FILE *logfile, int initial_row_count) {
   if (initial_row_count == READ_ALL_LINES) {
-    fseek(logfile, 0, SEEK_SET);
+    fseeko(logfile, 0, SEEK_SET);
     return;
   }
-  fseek(logfile, 0, SEEK_END);
+  fseeko(logfile, 0, SEEK_END);
   if (initial_row_count == 0) return;
 
-  int pos_in_buffer = 0;
+  long pos_in_buffer = 0;
   int row_count = 0;
   char *buffer;
   buffer = malloc(sizeof(char) * SEEK_BUFFER_SIZE);
 
   //Rewind a bit
   int read;
-  long buffer_pos = ftell(logfile);
+  off_t buffer_pos = ftello(logfile);
   if (buffer_pos == 0) return;
-  long seek = buffer_pos % SEEK_BUFFER_SIZE;
+  off_t seek = buffer_pos % SEEK_BUFFER_SIZE;
   buffer_pos -= seek != 0 ? seek : SEEK_BUFFER_SIZE;
-  fseek(logfile, buffer_pos, SEEK_SET);
+  fseeko(logfile, buffer_pos, SEEK_SET);
 
   while((read = fread(buffer, sizeof(char), SEEK_BUFFER_SIZE, logfile)) > 0) {
 
@@ -77,7 +77,7 @@ void logfile_seek(FILE *logfile, int initial_row_count) {
       break;
     } else {
       buffer_pos -= SEEK_BUFFER_SIZE;
-      fseek(logfile, buffer_pos, SEEK_SET);
+      fseeko(logfile, buffer_pos, SEEK_SET);
     }
   }
   
@@ -86,10 +86,10 @@ void logfile_seek(FILE *logfile, int initial_row_count) {
 
   //If not enough rows, then the file is already seeked properly to the beginning
   if (row_count <= initial_row_count) {
-    fseek(logfile, 0, SEEK_SET);
+    fseeko(logfile, 0, SEEK_SET);
   }
   
-  fseek(logfile, buffer_pos+pos_in_buffer+1, SEEK_SET);
+  fseeko(logfile, buffer_pos+pos_in_buffer+1, SEEK_SET);
 }
 
 int logfile_refresh(logfile *log) {
@@ -124,6 +124,7 @@ int logfile_refresh(logfile *log) {
       }
       err_in_table->is_new = 1;
     }
+    ++rowcount;
   }
   if (newlist != NULL) {
     newlist = errorlist_sort(newlist, log->sorting);
