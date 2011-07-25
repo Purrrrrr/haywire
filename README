@@ -17,5 +17,5 @@ Support for terminals without color
 
 Extensions and libraries used
 CMake
-Uses libghthash (0.6.2)
-Uses GNU getline
+libghthash (0.6.2)
+GNU getline extension
