@@ -1,0 +1,8 @@
+Haywire
+
+A small tool written in C to display apache+php error logs in real time.
+
+Extensions and libraries used
+CMake
+Uses libghthash (0.6.2)
+Uses GNU getline
