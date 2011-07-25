@@ -1,6 +1,19 @@
-Haywire
+- Haywire -
 
-A small tool written in C to display apache+php error logs in real time.
+A small terminal program written in C to display apache+php error logs in real time.
+
+Features:
+* Opens and parses an error log file to display a list of different error messages 
+* Scrollable list with last date, count and filename information
+* Different types of colors are displayed in different colors
+* Follows the log file in real time
+* Press enter to open the source of the error in vim (Editor configuration is yet to be done)
+* Rings the terminal bell when new errors occur (This can be turned off)
+
+Missing:
+A good keyboard mapping help
+Some configuration options
+Support for terminals without color
 
 Extensions and libraries used
 CMake
