@@ -146,6 +146,13 @@ int logfile_refresh(logfile *log) {
     ++rowcount;
   }
   if (newlist != NULL) {
+    //First we reset the is_new bits so that next refreshes work correclty
+    err = newlist;
+    while (err != NULL) {
+      err->is_new = 0;
+      err = err->next;
+    }
+
     newlist = errorlist_sort(newlist, log->sorting);
     //printf("Sorted, final merge");
     log->errorlist = errorlist_merge(log->errorlist, newlist, log->sorting);
@@ -243,6 +250,7 @@ logerror *errorlist_sort(logerror *err, int sorttype) {
     if (last != NULL) last = last->next;
   }
   middle->prev->next = NULL;  
+  middle->prev = NULL;
 
   err = errorlist_sort(err, sorttype);
   middle = errorlist_sort(middle, sorttype);
