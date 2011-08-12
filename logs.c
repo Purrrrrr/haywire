@@ -23,7 +23,7 @@
 
 //Helper functions
 void logfile_seek(FILE *logfile, int initial_row_count);
-void errorlist_remove_error(logerror *err);
+logerror *errorlist_remove_error(logerror *list, logerror *err);
 logerror *errorlist_insert(logerror *list, logerror *ins);
 logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype);
 logerror *errorlist_sort(logerror *list, int sorttype);
@@ -138,7 +138,7 @@ int logfile_refresh(logfile *log) {
     } else {
       logerror_merge(err_in_table, err);
       if (err_in_table->is_new == 0) {
-        errorlist_remove_error(err_in_table);
+        log->errorlist = errorlist_remove_error(log->errorlist, err_in_table);
         newlist = errorlist_insert(newlist, err_in_table);
       }
       err_in_table->is_new = 1;
@@ -188,7 +188,8 @@ logerror *errorlist_insert(logerror *list, logerror *ins) {
   ins->next = list;
   return ins;
 }
-void errorlist_remove_error(logerror *err) {
+logerror *errorlist_remove_error(logerror *list, logerror *err) {
+  if (list == err) list = list->next;
   //printf("Remove %d\n", err);
   if (err->prev != NULL) {
     err->prev->next = err->next;
@@ -196,6 +197,7 @@ void errorlist_remove_error(logerror *err) {
   if (err->next != NULL) {
     err->next->prev= err->prev;
   }
+  return list;
 }
 logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype) {
   logerror *cur = NULL;
