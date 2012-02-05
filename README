@@ -1,5 +1,6 @@
 - Haywire -
 
+
 A small terminal program written in C to display apache+php error logs in real time.
 
 Features:
@@ -19,4 +20,11 @@ Support for terminals without color
 Extensions and libraries used
 CMake
 libghthash (0.6.2; Included in the misc folder)
-GNU getline extension
+GNU getline extensions
+
+Compilation on a fairly recent ubuntu:
+
+sudo apt-get install libncurses5-dev
+
+cmake .
+make

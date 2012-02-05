@@ -23,6 +23,11 @@ target_link_libraries (logs parselog)
 
 add_library(parselog parse_log.c)
 
+add_library(ghthash ghthash/hash_table.c)
+target_link_libraries (ghthash ghthash_hashfunctions)
+
+add_library(ghthash_hashfunctions ghthash/hash_functions.c)
+
 #add_library(SList SList.cpp)
 #target_link_libraries (tester SList)
 
