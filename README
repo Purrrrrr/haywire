@@ -1,7 +1,6 @@
 - Haywire -
 
-
-A small terminal program written in C to display apache+php error logs in real time.
+A small ncurses program written in C to display apache+php error logs in real time.
 
 Features:
 * Opens and parses an error log file to display a list of different error messages 
@@ -11,20 +10,21 @@ Features:
 * Press enter to open the source of the error in vim (Editor configuration is yet to be done)
 * Rings the terminal bell when new errors occur (This can be turned off)
 
-Missing:
+TODO:
 Filtering logs by keyword
 A good keyboard mapping help
 Some configuration options
 Support for terminals without color
+An installation script
 
 Extensions and libraries used
 CMake
-libghthash (0.6.2; Included in the misc folder)
 GNU getline extensions
+libghthash 0.6.2; Basic source included in the misc folder. 
+  For the whole package see:
+  http://www.bth.se/people/ska/sim_home/libghthash.html)
 
-Compilation on a fairly recent ubuntu:
-
+Compilation on a fairly recent ubuntu should be straightforward:
 sudo apt-get install libncurses5-dev
-
 cmake .
 make
