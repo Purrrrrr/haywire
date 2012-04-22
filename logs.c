@@ -49,7 +49,12 @@ logfile *logfile_create() {
 
 int logfile_add_file(logfile *log, char *filename, int initial_row_count) {
   log->file = linereader_open(filename, initial_row_count);
-  return log->file != NULL;
+  if (log->file == NULL) {
+    return 0; 
+  }
+
+  logfile_refresh(log);
+  return 1;
 }
 
 int logfile_refresh(logfile *log) {
