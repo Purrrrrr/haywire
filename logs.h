@@ -30,8 +30,8 @@ typedef struct logfile {
   FILE *file;
   ght_hash_table_t *errortypes;
   logerror *errorlist;
-  short worst_new_line; //Stores the worst type of recent new lines
-  short worst_new_type; //Stores the worst type of recent new errors
+  short worstNewLine; //Stores the worst type of recent new lines
+  short worstNewType; //Stores the worst type of recent new errors
                         //that have not been encountered before
   short sorting;
   unsigned int empty_entries;

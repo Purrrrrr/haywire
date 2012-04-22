@@ -169,13 +169,13 @@ void toggle_bell_level(haywire_state *app) {
 }
 void ring_bells(haywire_state *app) {
   logfile *log = app->log;
-  if (app->bell_type == BELL_ON_NEW_ERROR && log->worst_new_line && log->worst_new_line <= app->bell_level) {
+  if (app->bell_type == BELL_ON_NEW_ERROR && log->worstNewLine && log->worstNewLine <= app->bell_level) {
     beep();
-  } else if (app->bell_type == BELL_ON_NEW_ERRORTYPE && log->worst_new_type && log->worst_new_type <= app->bell_level) {
+  } else if (app->bell_type == BELL_ON_NEW_ERRORTYPE && log->worstNewType && log->worstNewType <= app->bell_level) {
     beep();
   }
-  log->worst_new_line = 0;
-  log->worst_new_type = 0;
+  log->worstNewLine = 0;
+  log->worstNewType = 0;
 }
 void bell_status_print(haywire_state *app) {
   char *errtype = NULL;

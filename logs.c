@@ -43,8 +43,8 @@ logfile *logfile_create() {
   log->errortypes = map;
   log->errorlist = NULL;
   log->sorting = SORT_DEFAULT;
-  log->worst_new_line = 0;
-  log->worst_new_type = 0;
+  log->worstNewLine = 0;
+  log->worstNewType = 0;
 
   return log;
 }
@@ -127,26 +127,37 @@ int logfile_refresh(logfile *log) {
 
     err = parse_error_line(buffer);
     if (err == NULL) continue;
-    if (!log->worst_new_line || log->worst_new_line > err->type) log->worst_new_line = err->type;
+
+    if (!log->worstNewLine || log->worstNewLine > err->type) {
+      log->worstNewLine = err->type;
+    }
     
     //Get a possible duplicate entry in the hashtable
     err_in_table = ght_get(log->errortypes, err->linelength, err->logline);
+
     if (err_in_table == NULL) {
+      //Insert a completely new error
       ght_insert(log->errortypes, err, err->linelength, err->logline);
       newlist = errorlist_insert(newlist, err);
-      if (!log->worst_new_type || log->worst_new_type > err->type) log->worst_new_type = err->type;
+
+      if (!log->worstNewType || log->worstNewType > err->type) {
+        log->worstNewType = err->type;
+      }
     } else {
+      //Merge the two duplicate errors
       logerror_merge(err_in_table, err);
+
       if (err_in_table->is_new == 0) {
         log->errorlist = errorlist_remove_error(log->errorlist, err_in_table);
         newlist = errorlist_insert(newlist, err_in_table);
       }
+
       err_in_table->is_new = 1;
     }
     ++rowcount;
   }
   if (newlist != NULL) {
-    //First we reset the is_new bits so that next refreshes work correclty
+    //First we reset the is_new bits so that next refreshes work correctly
     err = newlist;
     while (err != NULL) {
       err->is_new = 0;
