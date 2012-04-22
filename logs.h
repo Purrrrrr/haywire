@@ -20,14 +20,12 @@
 #ifndef LOGS_H
 #define LOGS_H
 
-#include <stdio.h>
 #include "ghthash/ght_hash_table.h"
+#include "linereader.h"
 #include "parse_log.h"
 
-#define READ_ALL_LINES -1
-
 typedef struct logfile {
-  FILE *file;
+  linereader *file;
   ght_hash_table_t *errortypes;
   logerror *errorlist;
   short worstNewLine; //Stores the worst type of recent new lines

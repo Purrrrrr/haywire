@@ -19,10 +19,9 @@
 
 #include "logs.h"
 #include "parse_log.h"
-#define SEEK_BUFFER_SIZE 1024
 
 //Helper functions
-void logfile_seek(FILE *logfile, int initial_row_count);
+static void update_top_errortype(short *top, logerror *err);
 logerror *errorlist_remove_error(logerror *list, logerror *err);
 logerror *errorlist_insert(logerror *list, logerror *ins);
 logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype);
@@ -31,8 +30,6 @@ logerror *errorlist_sort(logerror *list, int sorttype);
 logfile *logfile_create() {
   logfile *log;
   log = malloc(sizeof(logfile));
-  log->file = NULL;
-
   if (log == NULL) return NULL;
 
   ght_hash_table_t *map = ght_create(256);
@@ -40,6 +37,7 @@ logfile *logfile_create() {
     free(log);
     return NULL;
   }
+  log->file = NULL;
   log->errortypes = map;
   log->errorlist = NULL;
   log->sorting = SORT_DEFAULT;
@@ -50,87 +48,22 @@ logfile *logfile_create() {
 }
 
 int logfile_add_file(logfile *log, char *filename, int initial_row_count) {
-  FILE *logfile = NULL;
-  
-  logfile = fopen(filename, "r");
-  if (logfile == NULL) return 0;
-  logfile_seek(logfile, initial_row_count);
-
-  if (log->file != NULL) fclose(log->file);
-  log->file = logfile;
-  logfile_refresh(log);
-  
-  return 1;
-}
-
-void logfile_seek(FILE *logfile, int initial_row_count) {
-  if (initial_row_count == READ_ALL_LINES) {
-    fseeko(logfile, 0, SEEK_SET);
-    return;
-  }
-  fseeko(logfile, 0, SEEK_END);
-  if (initial_row_count == 0) return;
-
-  long pos_in_buffer = 0;
-  int row_count = 0;
-  char *buffer;
-  buffer = malloc(sizeof(char) * SEEK_BUFFER_SIZE);
-
-  //Rewind a bit
-  int read;
-  off_t buffer_pos = ftello(logfile);
-  if (buffer_pos == 0) return;
-  off_t seek = buffer_pos % SEEK_BUFFER_SIZE;
-  buffer_pos -= seek != 0 ? seek : SEEK_BUFFER_SIZE;
-  fseeko(logfile, buffer_pos, SEEK_SET);
-
-  while((read = fread(buffer, sizeof(char), SEEK_BUFFER_SIZE, logfile)) > 0) {
-
-    for(pos_in_buffer = read-1; pos_in_buffer >= 0; --pos_in_buffer) {
-      if (buffer[pos_in_buffer] != '\n') continue;
-      ++row_count;
-      if (row_count > initial_row_count) goto end; //The same as two breaks
-    }
-
-    if (buffer_pos == 0) {
-      break;
-    } else {
-      buffer_pos -= SEEK_BUFFER_SIZE;
-      fseeko(logfile, buffer_pos, SEEK_SET);
-    }
-  }
-  
-  //We goto here from the for loop that inspects the buffer.
-  end:
-
-  //If not enough rows, then the file is already seeked properly to the beginning
-  if (row_count <= initial_row_count) {
-    fseeko(logfile, 0, SEEK_SET);
-  }
-  
-  fseeko(logfile, buffer_pos+pos_in_buffer+1, SEEK_SET);
+  log->file = linereader_open(filename, initial_row_count);
+  return log->file != NULL;
 }
 
 int logfile_refresh(logfile *log) {
   int rowcount = 0;
-  char *buffer = NULL;
-  size_t n = 0;
-  ssize_t len = 0;
+  char *line = NULL;
   logerror *err;
   logerror *err_in_table;
   logerror *newlist = NULL;
 
-  while(len = getline(&buffer, &n, log->file)) {
-    if (len < 0) break;
-    //We don't like 'em trailin newlines!
-    if (len >= 1 && buffer[len-1] == '\n') buffer[len-1] = '\0';
-
-    err = parse_error_line(buffer);
+  while((line = linereader_getline(log->file)) != NULL) {
+    err = parse_error_line(line);
     if (err == NULL) continue;
 
-    if (!log->worstNewLine || log->worstNewLine > err->type) {
-      log->worstNewLine = err->type;
-    }
+    update_top_errortype(&log->worstNewLine, err);
     
     //Get a possible duplicate entry in the hashtable
     err_in_table = ght_get(log->errortypes, err->linelength, err->logline);
@@ -140,9 +73,7 @@ int logfile_refresh(logfile *log) {
       ght_insert(log->errortypes, err, err->linelength, err->logline);
       newlist = errorlist_insert(newlist, err);
 
-      if (!log->worstNewType || log->worstNewType > err->type) {
-        log->worstNewType = err->type;
-      }
+      update_top_errortype(&log->worstNewType, err);
     } else {
       //Merge the two duplicate errors
       logerror_merge(err_in_table, err);
@@ -168,7 +99,6 @@ int logfile_refresh(logfile *log) {
     //printf("Sorted, final merge");
     log->errorlist = errorlist_merge(log->errorlist, newlist, log->sorting);
   }
-  if (buffer != NULL) free(buffer);
 
   return rowcount;
 }
@@ -182,8 +112,8 @@ void logfile_close(logfile *log) {
     logerror_destroy((logerror *)p_e);
   }
   ght_finalize(log->errortypes);
-
-  fclose(log->file);
+  
+  linereader_close(log->file);
   free(log);
 }
 
@@ -292,4 +222,10 @@ void toggle_sort_type(logfile *log) {
   }
   log->sorting = sort;
   log->errorlist = errorlist_sort(log->errorlist, sort);
+}
+
+static inline void update_top_errortype(short *top, logerror *err) {
+  if (errortype_worse(err->type, *top)) {
+    *top = err->type;
+  }
 }

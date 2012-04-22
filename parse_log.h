@@ -20,12 +20,14 @@
 #ifndef PARSE_LOG_H
 #define PARSE_LOG_H
 
-#define E_UNPARSED 0
+/* The more severe error values are always greater */
 #define E_ERROR 1
 #define E_PARSE 2
 #define E_WARNING 4
 #define E_NOTICE 8
-#define E_MISSING_FILE 256
+#define E_MISSING_FILE 128 
+#define E_NOERROR 256
+#define E_UNPARSED 256
 
 #define SORT_DEFAULT 1
 #define SORT_TYPE 1
@@ -50,6 +52,9 @@ typedef struct logerror {
   struct logerror *next;
 } logerror;
 
+static inline int errortype_worse(short a, short b) {
+  return a < b;
+}
 logerror *parse_error_line(const char *line);
 int logerror_merge(logerror *this, logerror *that);
 int errorlog_cmp(logerror *a, logerror *b, short sorttype);
