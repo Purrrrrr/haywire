@@ -66,6 +66,7 @@ int main(int argv, char *args[]) {
 
   while(1) {
     int c = getch();
+    short modified = 0;
     if (c == 'q') break;
     
     logfile_refresh(app.log);
@@ -74,29 +75,37 @@ int main(int argv, char *args[]) {
       case 'j': 
       case KEY_DOWN: 
       app.show_info ? list_select_change(1) : list_scroll(1);
+      modified = 1;
       break;
       case 'k': 
       case KEY_UP: 
       app.show_info ? list_select_change(-1) : list_scroll(-1);
+      modified = 1;
       break;
       case ' ':
       case KEY_NPAGE: 
       list_scroll_page(1);
+      modified = 1;
       break;
       case KEY_PPAGE: 
       list_scroll_page(-1);
+      modified = 1;
       break;
       case 'B':
       toggle_bell_type(&app);
+      modified = 1;
       break;
       case 'b':
       toggle_bell_level(&app);
+      modified = 1;
       break;
       case 'o':
       toggle_sort_type(app.log);
+      modified = 1;
       break;
       case 'O':
       toggle_sort_direction(app.log);
+      modified = 1;
       break;
       case 'i':
       case 'f':
@@ -112,6 +121,7 @@ int main(int argv, char *args[]) {
       } else {
         app.selected = NULL;
       }
+      modified = 1;
       break;
       case 'v':
       case '\r':
@@ -120,11 +130,13 @@ int main(int argv, char *args[]) {
       vim(app.selected);
       break;
     }
-
-    clear();
-    display_infobox();
-    display_logs();
-    ring_bells(&app);
+    
+    if (modified || app.log->worstNewLine || app.log->worstNewType ) {
+      clear();
+      display_infobox();
+      display_logs();
+      ring_bells(&app);
+    }
   }
 
   endwin();
