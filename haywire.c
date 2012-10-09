@@ -62,7 +62,8 @@ int main(int argv, char *args[]) {
   errorlist_sort(app.log, app.log->sorting);
   select_nth(&app, 0); */
 
-  unsigned long last_lines = 0;
+  short last_updated_in = 0;
+  short redraw_treshold = 600/app.update_delay;
 
   while(1) {
     int c = getch();
@@ -130,13 +131,16 @@ int main(int argv, char *args[]) {
       vim(app.selected);
       break;
     }
+    if (app.log->worstNewLine || app.log->worstNewType) modified = true;
+    if (last_updated_in > redraw_treshold) modified = true;
     
-    if (modified || app.log->worstNewLine || app.log->worstNewType ) {
+    if (modified) {
       clear();
       display_infobox();
       display_logs();
       ring_bells(&app);
-    }
+      last_updated_in = 0;
+    } else last_updated_in++;
   }
 
   endwin();
