@@ -6,21 +6,21 @@ project (haywire)
 
 add_executable(haywire haywire.c)
 target_link_libraries (haywire ncurses)
-target_link_libraries (haywire logs)
+target_link_libraries (haywire loglist)
 target_link_libraries (haywire appstate)
 
 
 add_executable(test test.c)
-target_link_libraries (test logs)
+target_link_libraries (test loglist)
 target_link_libraries (test appstate)
 
 add_library(appstate appstate.c)
 target_link_libraries (appstate ncurses)
 
-add_library(logs logs.c)
-target_link_libraries (logs ghthash)
-target_link_libraries (logs linereader)
-target_link_libraries (logs logerror)
+add_library(loglist loglist.c)
+target_link_libraries (loglist ghthash)
+target_link_libraries (loglist linereader)
+target_link_libraries (loglist logerror)
 
 add_library(logerror logerror.c)
 

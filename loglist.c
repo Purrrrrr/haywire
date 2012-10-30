@@ -17,7 +17,7 @@
  * along with Haywire.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "logs.h"
+#include "loglist.h"
 #include "logerror.h"
 
 //Helper functions

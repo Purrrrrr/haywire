@@ -24,7 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include "appstate.h"
-#include "logs.h"
+#include "loglist.h"
 
 #define STATUS_LINE_COUNT 2
 #define MAX_LINE_LEN 256

@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "appstate.h"
-#include "logs.h"
+#include "loglist.h"
 
 haywire_state app;
 

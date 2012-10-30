@@ -20,7 +20,7 @@
 #ifndef APPSTATE_H
 #define APPSTATE_H
 #include <curses.h>
-#include "logs.h"
+#include "loglist.h"
 
 #define LOG_RED 1
 #define LOG_YELLOW 2
