@@ -1,0 +1,82 @@
+== Modules ==
+
+* HAYWIRE
+
+main
+draw_status
+draw_list
+draw_info
+open_editor
+
+* APPSTATE
+{
+  last_update_time
+  last_error_time
+  update_delay
+  
+  relative_path
+  logfile
+  selected
+  show_info
+  screen
+
+  bell
+}
+
+int haywire_parse_arguments(haywire_state *state, int argv, char *args[])
+void haywire_move_selection(int delta);
+void haywire_select_log(logerror);
+
+//Change bell options, sorting
+
+* LINEREADER - just reads lines
+* LOGERROR
+struct logerror {
+  severity
+  is_new
+  occurrence_count
+  message
+  filename
+  line_nr
+  occurrences
+}
+struct logerror_occurrence {
+  time
+  referer
+  stack_trace
+  previous_occurrence
+}
+
+logerror_parse_line(char *line)
+logerror_match(char *filter)
+logerror_cmp(a, b, sorting)
+logerror_merge(this, that)
+
+* LOGLIST ?
+struct filtered_loglist {
+
+  int size
+  char *filter
+  int sorting
+
+  hash *errortypes
+  loglist_entry *list
+  loglist_entry *skipped
+}
+struct loglist_entry {
+  error
+  prev
+  next
+}
+
+loglist_create();
+loglist_add_file(...);
+loglist_refresh(...)
+
+loglist_filter(filter)
+loglist_sort(sorting)
+
+//Internal
+loglist_entry *sort(list, sorting);
+loglist_entry *merge(a, b, sorting);
+void filter
