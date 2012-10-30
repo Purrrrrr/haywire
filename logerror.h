@@ -43,8 +43,9 @@ typedef struct logerror {
   short is_new;
   short type;
   int count;
-  char *logline; //The whole log line, can contain null characters
-  size_t linelength; //The length of the line
+  char *key; //A key to identify this message type and origin
+  size_t keylength; //The length of the key 
+
   char *msg; //Null terminated log message
   char *filename; //Null terminated filename
   int linenr;
@@ -55,7 +56,7 @@ typedef struct logerror {
 static inline int errortype_worse(short a, short b) {
   return a < b;
 }
-logerror *parse_error_line(const char *line);
+logerror *parse_error_line(char *line);
 int logerror_merge(logerror *this, logerror *that);
 int errorlog_cmp(logerror *a, logerror *b, short sorttype);
 char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t *n);

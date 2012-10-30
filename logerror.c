@@ -17,71 +17,50 @@
  * along with Haywire.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//To get strptime to declare correctly
-#define _XOPEN_SOURCE
-#define __USE_XOPEN
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#include <string.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "logerror.h"
+#include "parser.c"
 
-void parse_php_error(logerror *err);
-void parse_404(logerror *err);
+void parse_php_error(logerror *err, lineparser *parser);
+void parse_404(logerror *err, lineparser *parser);
+logerror *logerror_init();
 
-logerror *parse_error_line(const char *line) {
+/*
+ [Mon Apr 18 11:21:27 2011] [error] [client 89.27.5.98] PHP Fatal error:  Uncaught exception 'Exception' with message 'Virhe tallennettaessa asiakastietoja' in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php:623\nStack trace:\n#0 /var/www/matkapojat-uusi/web/libraries/matkapojat/db/testi2.php(37): WinresAsiakas->store()\n#1 {main}\n  thrown in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php on line 623
+ [Mon Apr 18 11:22:39 2011] [error] [client 194.142.151.79] PHP Notice:  Undefined property: JView::$lahdot_left in /var/www/matkapojat-uusi/web/templates/matkapojat/modules/frontpage_list/frontpage_list.html.php on line 21, referer: http://matkapojatd.ath.cx/kiertomatkat/puola
+ */
 
-  struct tm tm;
-  tm.tm_sec = 0;
-  tm.tm_min = 0;
-  tm.tm_hour = 0;
-  tm.tm_mday = 0;
-  tm.tm_mon = 0;
-  tm.tm_year = 0;
-  tm.tm_wday = 0;
-  tm.tm_isdst = -1;
+logerror *parse_error_line(char *line) {
+  lineparser p;
+  lineparser_init(&p, line);
 
-  line = strptime(line, "[%a %b %d %T %Y] ", &tm);
-  if (line == NULL) return NULL;
-
-  char *error = NULL;
+  time_t date = lineparser_read_time(&p, "[%a %b %d %T %Y] ");
+  if (date == 0) return NULL;
   
-  error = strstr(line, "[error] [");
-  if (error == NULL) return NULL;
-  error += 9; //strlen("[error] [");
+  if (!lineparser_skip_past(&p, "[error] [")) return NULL;
+  if (!lineparser_skip_past(&p, "] ")) return NULL;
 
-  error = strstr(error, "] ");
-  if (error == NULL) return NULL;
-  error += 2;
-
-  logerror *err = malloc(sizeof(logerror));
+  logerror *err = logerror_init();
   if (err == NULL) return NULL;
 
-  err->count = 1;
-  err->is_new = 1;
-  err->date = mktime(&tm);
-  err->logline = strdup(error);
-  err->linelength = strlen(error);
-  err->msg = err->logline;
-  err->filename = err->logline;
-  err->linenr = 0;
-  err->type = E_UNPARSED;
-  err->prev = NULL;
-  err->next = NULL;
+  err->date = date;
+  err->key = strdup(p.line);
+  err->keylength= strlen(p.line);
+  err->msg = err->key;
 
-  if (err->logline == NULL) {
+  if (err->key == NULL) {
     free(err);
     return NULL;
   }
 
-  char *phperror = strstr(line, "PHP");
-  if (phperror == error) parse_php_error(err);
-  else {
-    char *e404_str = strstr(line, "File does not exist");
-    if (e404_str == error) parse_404(err);
+  if (lineparser_begins_with(&p, "PHP")) {
+    parse_php_error(err, &p);
+  } else if (lineparser_begins_with(&p, "File does not exist")) {
+    parse_404(err, &p);
   }
   
   if (err->type == E_UNPARSED) {
@@ -93,8 +72,28 @@ logerror *parse_error_line(const char *line) {
 
 }
 
+logerror *logerror_init() {
+  logerror *err = malloc(sizeof(logerror));
+  if (err == NULL) return NULL;
+
+  err->count = 1;
+  err->is_new = 1;
+  err->date = 0;
+  err->key = NULL;
+  err->keylength = 0;
+  err->msg = NULL;
+  err->filename = NULL;
+  err->linenr = 0;
+  err->type = E_UNPARSED;
+
+  err->prev = NULL;
+  err->next = NULL;
+
+  return err;
+}
+
 void logerror_destroy(logerror *err) {
-  free(err->logline);
+  free(err->key);
   free(err);
 }
 
@@ -143,8 +142,8 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
 //Merges two similar log entries. Frees the second argument if succesful.
 int logerror_merge(logerror *this, logerror *that) {
   //Make sure the errors are the same:
-  if (this->linelength != that->linelength) return 0;
-  if (memcmp(this->logline, that->logline, this->linelength) != 0) return 0;
+  if (this->keylength != that->keylength) return 0;
+  if (memcmp(this->key, that->key, this->keylength) != 0) return 0;
 
   if (that->date > this->date) this->date = that->date;
   this->count += that->count;
@@ -197,63 +196,54 @@ static const char *filename_prefix = " in ";
 static const char *filename_prefix_exceptions = " thrown";
 static const char *linenr_prefix = " on line ";
 
-void parse_php_error(logerror *err) {
-  char *line = err->logline + 4; //Get past "PHP "
-  char *msg = strstr(line,":");
-  *msg = '\0'; //Temporarily blank the ':';
+void parse_php_error(logerror *err, lineparser *p) {
+  lineparser_skip_past(p, "PHP ");
 
-  if (strcmp(line, "Catchable fatal error") == 0 || strcmp(line, "Fatal error") == 0) {
+  char *typestring = lineparser_read_until(p, ":");
+
+  if (   strcmp(typestring, "Catchable fatal error") == 0 
+      || strcmp(typestring, "Fatal error") == 0) 
+  {
     err->type = E_ERROR;
-  } else if (strcmp(line, "Parse error") == 0) {
+  } else if (strcmp(typestring, "Parse error") == 0) {
     err->type = E_PARSE;
-  } else if (strcmp(line, "Warning") == 0) {
+  } else if (strcmp(typestring, "Warning") == 0) {
     err->type = E_WARNING;
-  } else if (strcmp(line, "Notice") == 0) {
+  } else if (strcmp(typestring, "Notice") == 0) {
     err->type = E_NOTICE;
   } else {
     return;
   }
 
-  //*msg = ':'; //Restore the ':';
-  while(msg != '\0' && !isalnum(*msg)) ++msg;
-  err->msg = msg;
-
-  char *filename = msg; 
-  char *next = NULL;
-  while(next = strstr(filename+1, filename_prefix)) filename = next;
-
-  if (filename == msg) {
-    err->type = E_UNPARSED;
-    return;
-  }
+  lineparser_skip_whitespace(p);
   
-  char *test = filename-strlen(filename_prefix_exceptions);
-  if (strstr(test, filename_prefix_exceptions) == test) filename = test;
+  //Get filename, line number and referer from the end of the string
+  //in reverse order off course.
+  char *referer = lineparser_read_after_last(p, "referer: ");
+  char *linenr = lineparser_read_after_last(p, " on line ");
+  err->filename = lineparser_read_after_last(p, " in ");
+  lineparser_skip_from_end(p, "thrown ");
 
-  *filename = '\0'; //End the msg string. 
-  err->filename = filename + strlen(filename_prefix);
-
-  char *linenr = strstr(filename + 4, linenr_prefix);
-  if (linenr == NULL) {
+  if (linenr == NULL || err->filename == NULL) {
     err->type = E_UNPARSED;
     return;
   }
-
-  *linenr = '\0';
-  linenr += strlen(linenr_prefix);
+  if (referer != NULL) {
+    err->keylength -= strlen(referer) + strlen("referer: ");
+  }
   if (!sscanf(linenr, "%d", &(err->linenr))) {
     err->type = E_UNPARSED;
     return;
   }
 
 }
-void parse_404(logerror *err) {
+void parse_404(logerror *err, lineparser *parser) {
   err->type = E_MISSING_FILE;
-  
-  err->msg = err->logline;
-  char *filename = strstr(err->logline, ":");
+  err->msg = err->key;
+
+  char *filename = strstr(err->key, ":");
   *filename = '\0'; //Null terminate the message
   filename += 2; //Forward past the ": "
   err->filename = filename;
-  err->linenr = -1;
+  err->linenr = 0;
 }

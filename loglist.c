@@ -71,11 +71,11 @@ int logfile_refresh(logfile *log) {
     update_top_errortype(&log->worstNewLine, err);
     
     //Get a possible duplicate entry in the hashtable
-    err_in_table = ght_get(log->errortypes, err->linelength, err->logline);
+    err_in_table = ght_get(log->errortypes, err->keylength, err->key);
 
     if (err_in_table == NULL) {
       //Insert a completely new error
-      ght_insert(log->errortypes, err, err->linelength, err->logline);
+      ght_insert(log->errortypes, err, err->keylength, err->key);
       newlist = errorlist_insert(newlist, err);
 
       update_top_errortype(&log->worstNewType, err);
