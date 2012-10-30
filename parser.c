@@ -32,6 +32,9 @@ typedef struct lineparser {
 static inline void lineparser_init(lineparser *parser, char *line) {
   parser->line = line;
 }
+static inline char *lineparser_current_position(lineparser *parser) {
+  return parser->line;
+}
 static inline time_t lineparser_read_time(lineparser *parser, char *format) {
 
   struct tm tm;

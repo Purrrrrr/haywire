@@ -47,9 +47,12 @@ logerror *parse_error_line(char *line) {
   logerror *err = logerror_init();
   if (err == NULL) return NULL;
 
+  line = strdup(lineparser_current_position(&p));
+  lineparser_init(&p, line);
+
   err->date = date;
-  err->key = strdup(p.line);
-  err->keylength= strlen(p.line);
+  err->key = line;
+  err->keylength= strlen(line);
   err->msg = err->key;
 
   if (err->key == NULL) {
@@ -236,6 +239,7 @@ void parse_php_error(logerror *err, lineparser *p) {
     return;
   }
 
+  err->msg = lineparser_current_position(p);
 }
 void parse_404(logerror *err, lineparser *parser) {
   err->type = E_MISSING_FILE;
