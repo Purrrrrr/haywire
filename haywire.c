@@ -62,12 +62,12 @@ int main(int argv, char *args[]) {
   errorlist_sort(app.log, app.log->sorting);
   select_nth(&app, 0); */
 
-  short last_updated_in = 0;
   short redraw_treshold = 600/app.update_delay;
+  short last_updated_in = redraw_treshold; //Update immediately to show the screen.
 
   while(1) {
     int c = getch();
-    short modified = 0;
+    short modified = 1; //By default every keystroke updates the screen
     if (c == 'q') break;
     
     logfile_refresh(app.log);
@@ -76,37 +76,29 @@ int main(int argv, char *args[]) {
       case 'j': 
       case KEY_DOWN: 
       app.show_info ? list_select_change(1) : list_scroll(1);
-      modified = 1;
       break;
       case 'k': 
       case KEY_UP: 
       app.show_info ? list_select_change(-1) : list_scroll(-1);
-      modified = 1;
       break;
       case ' ':
       case KEY_NPAGE: 
       list_scroll_page(1);
-      modified = 1;
       break;
       case KEY_PPAGE: 
       list_scroll_page(-1);
-      modified = 1;
       break;
       case 'B':
       toggle_bell_type(&app);
-      modified = 1;
       break;
       case 'b':
       toggle_bell_level(&app);
-      modified = 1;
       break;
       case 'o':
       toggle_sort_type(app.log);
-      modified = 1;
       break;
       case 'O':
       toggle_sort_direction(app.log);
-      modified = 1;
       break;
       case 'i':
       case 'f':
@@ -122,7 +114,6 @@ int main(int argv, char *args[]) {
       } else {
         app.selected = NULL;
       }
-      modified = 1;
       break;
       case 'v':
       case '\r':
@@ -130,9 +121,11 @@ int main(int argv, char *args[]) {
       case KEY_ENTER:
       vim(app.selected);
       break;
+      default:
+      modified = 0; //No keystroke, not modified
     }
-    if (app.log->worstNewLine || app.log->worstNewType) modified = true;
-    if (last_updated_in > redraw_treshold) modified = true;
+    if (app.log->worstNewLine || app.log->worstNewType) modified = 1;
+    if (last_updated_in >= redraw_treshold) modified = 1;
     
     if (modified) {
       clear();
