@@ -27,7 +27,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "parse_log.h"
+#include "logerror.h"
 
 void parse_php_error(logerror *err);
 void parse_404(logerror *err);

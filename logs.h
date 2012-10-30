@@ -22,7 +22,7 @@
 
 #include "ghthash/ght_hash_table.h"
 #include "linereader.h"
-#include "parse_log.h"
+#include "logerror.h"
 
 typedef struct logfile {
   linereader *file;

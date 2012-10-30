@@ -18,7 +18,7 @@
  */
 
 #include "logs.h"
-#include "parse_log.h"
+#include "logerror.h"
 
 //Helper functions
 static void update_top_errortype(short *top, logerror *err);

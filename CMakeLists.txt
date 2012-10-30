@@ -20,9 +20,9 @@ target_link_libraries (appstate ncurses)
 add_library(logs logs.c)
 target_link_libraries (logs ghthash)
 target_link_libraries (logs linereader)
-target_link_libraries (logs parselog)
+target_link_libraries (logs logerror)
 
-add_library(parselog parse_log.c)
+add_library(logerror logerror.c)
 
 add_library(linereader linereader.c)
 
