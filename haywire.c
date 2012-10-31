@@ -45,7 +45,6 @@ int str_linecount(char *str, int linelen, int *x);
 void display_infobox();
 void display_logs();
 void print_error(logerror *err, int selected, int row);
-char *get_log_time(logerror *err);
 void vim(logerror *err);
 
 int main(int argv, char *args[]) {
@@ -188,6 +187,10 @@ void list_scroll(int scroll) {
   }
 }
 
+static const char location_text[] = "Location:";
+static const char referer_text[] = "Referer:";
+static const char stack_trace_text[] = "Stack Trace:";
+
 void display_infobox() {
   infobox_size = 0;
   if (!app.show_info || app.selected == NULL) return;
@@ -195,17 +198,29 @@ void display_infobox() {
   int cols,rows;
   cols=rows=0;
   getmaxyx(app.screen, rows, cols);
-  
+
   int x = 0;
   size_t msg_lines = str_linecount(app.selected->msg, cols, &x);
-  x = 0;
+  x = sizeof(location_text);
   size_t filename_lines = str_linecount(app.selected->filename, cols, &x);
+
   size_t linenr_length = 1;
   int i = app.selected->linenr;
   while(i > 10) { i /= 10; ++linenr_length; }
   if (x + linenr_length + 1 > cols) ++filename_lines;
 
-  infobox_size = 1+msg_lines+filename_lines;
+  size_t referer_lines = 0;
+  if (app.selected->latest_occurrence->referer != NULL) {
+    x = sizeof(referer_text);
+    referer_lines = str_linecount(app.selected->latest_occurrence->referer, cols, &x);
+  }
+  size_t stack_trace_lines = 0;
+  if (app.selected->latest_occurrence->stack_trace != NULL) {
+    x = sizeof(stack_trace_text);
+    stack_trace_lines = str_linecount(app.selected->latest_occurrence->stack_trace, cols, &x);
+  }
+
+  infobox_size = 1+msg_lines+filename_lines+referer_lines+stack_trace_lines;
   
   int y = rows-infobox_size;
   move(y, 0);
@@ -215,29 +230,27 @@ void display_infobox() {
   mvprintw(y, cols-23, " (Toggle info using i)");
   standend();
 
-  move(++y, 0);
-  char *msg = app.selected->msg;
-  while(*msg != '\0') {
-    if (msg[0] == '\\' && msg[1] == 'n') {
-      addch('\n');
-      ++msg;
-    } else addch(*msg);
-    ++msg;
-  }
- 
+  mvprintw(++y, 0, "%s", app.selected->msg);
   y += msg_lines;
-  mvprintw(y, 0, "%s:%d", app.selected->filename, app.selected->linenr);
-  printw("%d", infobox_size);
+
+  if (referer_lines) {
+    mvprintw(y, 0, "%s %s", referer_text, app.selected->latest_occurrence->referer);
+    y += referer_lines;
+  }
+
+  if (stack_trace_lines) {
+    mvprintw(y, 0, "%s %s", stack_trace_text, app.selected->latest_occurrence->stack_trace);
+    y += stack_trace_lines;
+  }
+
+  mvprintw(y, 0, "%s %s:%d", location_text, app.selected->filename, app.selected->linenr);
+  //printw("%d", infobox_size);
 
 }
 int str_linecount(char *str, int linelen, int *x) {
   int lines = 1;
   while(*str != '\0') {
-    if (str[0] == '\\' && str[1] == 'n') {
-      ++lines;
-      ++str;
-      *x = 0;
-    } else if (*str == '\n') {
+    if (*str == '\n') {
       ++lines;
       *x = 0;
     } else {
@@ -300,33 +313,12 @@ void print_error(logerror *err, int selected, int row) {
   attron(COLOR_PAIR(color));
   if (selected) standout();
 
-  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d %*s", get_log_time(err), err->count, err->msg, filename, err->linenr, (int)(sizeof(linebuffer)), "");
+  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d %*s", get_log_time(err->latest_occurrence), err->count, err->msg, filename, err->linenr, (int)(sizeof(linebuffer)), "");
   move(row, 0);
   addnstr(linebuffer, getmaxx(app.screen));
 
   if (selected) standend();
   attroff(COLOR_PAIR(color));
-}
-char *get_log_time(logerror *err) {
-  static char buff[7] = "";
-  time_t now = time(NULL);
-  struct tm date;
-  struct tm now_date;
-  localtime_r(&err->date, &date);
-  localtime_r(&now, &now_date);
-  
-  char *format = "";
-  if (now < err->date + 60*60*12) {
-    format = " %H:%M";
-  } else if (date.tm_year == now_date.tm_year 
-          && date.tm_yday == now_date.tm_yday) {
-    format = " %H:%M";
-  } else {
-    format = "%d %b";
-  }
-  strftime(buff, sizeof(buff), format, &date); 
-  
-  return buff;
 }
 void vim(logerror *err) {
   if (err == NULL) return;

@@ -38,8 +38,14 @@
 #define SORT_COUNT_REVERSE -3
 #define SORT_MAX 3
 
-typedef struct logerror {
+typedef struct logerror_occurrence {
   time_t date;
+  char *referer;
+  char *stack_trace;
+  struct logerror_occurrence *prev;
+} logerror_occurrence;
+
+typedef struct logerror {
   short is_new;
   short type;
   int count;
@@ -49,6 +55,9 @@ typedef struct logerror {
   char *msg; //Null terminated log message
   char *filename; //Null terminated filename
   int linenr;
+  
+  logerror_occurrence *latest_occurrence;
+  
   struct logerror *prev;
   struct logerror *next;
 } logerror;

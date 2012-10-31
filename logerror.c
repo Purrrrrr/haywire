@@ -29,11 +29,6 @@ void parse_php_error(logerror *err, lineparser *parser);
 void parse_404(logerror *err, lineparser *parser);
 logerror *logerror_init();
 
-/*
- [Mon Apr 18 11:21:27 2011] [error] [client 89.27.5.98] PHP Fatal error:  Uncaught exception 'Exception' with message 'Virhe tallennettaessa asiakastietoja' in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php:623\nStack trace:\n#0 /var/www/matkapojat-uusi/web/libraries/matkapojat/db/testi2.php(37): WinresAsiakas->store()\n#1 {main}\n  thrown in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php on line 623
- [Mon Apr 18 11:22:39 2011] [error] [client 194.142.151.79] PHP Notice:  Undefined property: JView::$lahdot_left in /var/www/matkapojat-uusi/web/templates/matkapojat/modules/frontpage_list/frontpage_list.html.php on line 21, referer: http://matkapojatd.ath.cx/kiertomatkat/puola
- */
-
 logerror *parse_error_line(char *line) {
   lineparser p;
   lineparser_init(&p, line);
@@ -50,7 +45,7 @@ logerror *parse_error_line(char *line) {
   line = strdup(lineparser_current_position(&p));
   lineparser_init(&p, line);
 
-  err->date = date;
+  err->latest_occurrence->date = date;
   err->key = line;
   err->keylength= strlen(line);
   err->msg = err->key;
@@ -79,16 +74,27 @@ logerror *logerror_init() {
   logerror *err = malloc(sizeof(logerror));
   if (err == NULL) return NULL;
 
+  logerror_occurrence *occ = malloc(sizeof(logerror_occurrence));
+  if (occ == NULL) {
+    free(err);
+    return NULL;
+  }
+
+  occ->date = 0;
+  occ->referer = NULL;
+  occ->stack_trace = NULL;
+  occ->prev = NULL;
+
   err->count = 1;
   err->is_new = 1;
-  err->date = 0;
   err->key = NULL;
   err->keylength = 0;
   err->msg = NULL;
   err->filename = NULL;
   err->linenr = 0;
   err->type = E_UNPARSED;
-
+  
+  err->latest_occurrence = occ;
   err->prev = NULL;
   err->next = NULL;
 
@@ -96,6 +102,17 @@ logerror *logerror_init() {
 }
 
 void logerror_destroy(logerror *err) {
+  logerror_occurrence *occ = err->latest_occurrence;
+  logerror_occurrence *tmp;
+
+  while(occ != NULL) {
+    if (occ->referer != NULL) free(occ->referer);
+    if (occ->stack_trace != NULL) free(occ->stack_trace);
+    tmp = occ->prev;
+    free(occ);
+    occ = tmp;
+  }
+
   free(err->key);
   free(err);
 }
@@ -112,8 +129,8 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
     case SORT_DATE:
       break; //Handled below
     case SORT_DATE_REVERSE:
-      if (a->date > b->date) return 1;
-      if (a->date < b->date) return -1;
+      if (a->latest_occurrence->date > b->latest_occurrence->date) return 1;
+      if (a->latest_occurrence->date < b->latest_occurrence->date) return -1;
       return 0;
     case SORT_COUNT:
       if (a->count < b->count) return 1;
@@ -135,8 +152,8 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
   }
   
   //The newest logs are shown first
-  if (a->date > b->date) return -1;
-  if (a->date < b->date) return 1;
+  if (a->latest_occurrence->date > b->latest_occurrence->date) return -1;
+  if (a->latest_occurrence->date < b->latest_occurrence->date) return 1;
 
   //There could be more sort criteria, but those two almost always differ anyway.
   return 0;
@@ -148,10 +165,49 @@ int logerror_merge(logerror *this, logerror *that) {
   if (this->keylength != that->keylength) return 0;
   if (memcmp(this->key, that->key, this->keylength) != 0) return 0;
 
-  if (that->date > this->date) this->date = that->date;
   this->count += that->count;
-
+  
+  //Take occurrence lists and destroy that
+  logerror_occurrence *list1 = this->latest_occurrence;
+  logerror_occurrence *list2 = that->latest_occurrence;
+  that->latest_occurrence = NULL;
   logerror_destroy(that);
+
+  /*
+  if (that->date > this->date) this->date = that->date; */
+
+  if (list1 == NULL) {
+    this->latest_occurrence = list2;
+    return 1;
+  }
+  if (list2 == NULL) return 1; 
+
+  logerror_occurrence *cur = NULL;
+  logerror_occurrence *later = NULL;
+
+  while(list1 != NULL && list2 != NULL) {
+    
+    later = list1->date > list2->date ? list1 : list2;
+
+    if (cur == NULL) {
+      this->latest_occurrence = cur = later;
+    } else {
+      cur->prev = later;
+      cur = later;
+    }
+    if (later == list1) {
+      list1 = later->prev;
+    } else {
+      list2 = later->prev;
+    }
+    cur->prev= NULL;
+  }
+  if (list1 != NULL) {
+    cur->prev = list1;
+  } else if (list2 != NULL) {
+    cur->prev = list2;
+  }
+
   return 1;
 }
 
@@ -195,9 +251,11 @@ char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t
   return path;
 }
 
-static const char *filename_prefix = " in ";
-static const char *filename_prefix_exceptions = " thrown";
-static const char *linenr_prefix = " on line ";
+
+/*
+ [Mon Apr 18 11:21:27 2011] [error] [client 89.27.5.98] PHP Fatal error:  Uncaught exception 'Exception' with message 'Virhe tallennettaessa asiakastietoja' in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php:623\nStack trace:\n#0 /var/www/matkapojat-uusi/web/libraries/matkapojat/db/testi2.php(37): WinresAsiakas->store()\n#1 {main}\n  thrown in /var/www/matkapojat-uusi/web/libraries/matkapojat/db/winres.php on line 623
+ [Mon Apr 18 11:22:39 2011] [error] [client 194.142.151.79] PHP Notice:  Undefined property: JView::$lahdot_left in /var/www/matkapojat-uusi/web/templates/matkapojat/modules/frontpage_list/frontpage_list.html.php on line 21, referer: http://matkapojatd.ath.cx/kiertomatkat/puola
+ */
 
 void parse_php_error(logerror *err, lineparser *p) {
   lineparser_skip_past(p, "PHP ");
@@ -225,7 +283,22 @@ void parse_php_error(logerror *err, lineparser *p) {
   char *referer = lineparser_read_after_last(p, "referer: ");
   char *linenr = lineparser_read_after_last(p, " on line ");
   err->filename = lineparser_read_after_last(p, " in ");
-  lineparser_skip_from_end(p, "thrown ");
+  if (lineparser_begins_with(p, "Uncaught exception")) {
+    err->msg = lineparser_read_until(p, " in ");
+    lineparser_skip_past(p, "Stack trace:\\n");
+    char *stack_trace = lineparser_read_until(p, " thrown");
+    if (stack_trace != NULL) {
+      char *newline = NULL;
+      while((newline = strstr(stack_trace, "\\n")) != NULL) {
+        newline[0] = ' ';
+        newline[1] = '\n';
+      }
+      err->latest_occurrence->stack_trace = strdup(stack_trace);
+
+    }
+  } else {
+    err->msg = lineparser_current_position(p);
+  }
 
   if (linenr == NULL || err->filename == NULL) {
     err->type = E_UNPARSED;
@@ -233,13 +306,12 @@ void parse_php_error(logerror *err, lineparser *p) {
   }
   if (referer != NULL) {
     err->keylength -= strlen(referer) + strlen("referer: ");
+    err->latest_occurrence->referer = strdup(referer);
   }
   if (!sscanf(linenr, "%d", &(err->linenr))) {
     err->type = E_UNPARSED;
     return;
   }
-
-  err->msg = lineparser_current_position(p);
 }
 void parse_404(logerror *err, lineparser *parser) {
   err->type = E_MISSING_FILE;

@@ -39,6 +39,19 @@ int main(int argv, char *args[]) {
     logerror_nicepath(err, app.relative_path, &filename, &filename_len);
 
     printf("%d %s: %s:%d (%d times)\n", err->type, err->msg, filename, err->linenr, err->count);
+    logerror_occurrence *occ = err->latest_occurrence;
+    while(occ != NULL) {
+      printf("\t%s", get_log_time(occ));
+      if (occ->referer != NULL) {
+        printf(" referer: %s", occ->referer);
+      }
+      if (occ->stack_trace != NULL) {
+        printf("\n Stack trace: %s", occ->stack_trace);
+      }
+      printf("\n");
+      occ = occ->prev;
+    }
+
     err = err->next;
   } 
 

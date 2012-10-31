@@ -71,4 +71,7 @@ void ring_bells(haywire_state *app);
 int get_selected(haywire_state *app);
 void select_nth(haywire_state *app, int n);
 
+//Returns a string representation of the log occurrence time
+char *get_log_time(logerror_occurrence *err);
+
 #endif

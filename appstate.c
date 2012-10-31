@@ -226,3 +226,24 @@ void select_nth(haywire_state *app, int n) {
   }
   app->selected = err;
 }
+char *get_log_time(logerror_occurrence *err) {
+  static char buff[7] = "";
+  time_t now = time(NULL);
+  struct tm date;
+  struct tm now_date;
+  localtime_r(&err->date, &date);
+  localtime_r(&now, &now_date);
+  
+  char *format = "";
+  if (now < err->date + 60*60*12) {
+    format = " %H:%M";
+  } else if (date.tm_year == now_date.tm_year 
+          && date.tm_yday == now_date.tm_yday) {
+    format = " %H:%M";
+  } else {
+    format = "%d %b";
+  }
+  strftime(buff, sizeof(buff), format, &date); 
+  
+  return buff;
+}
