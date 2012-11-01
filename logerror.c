@@ -293,6 +293,12 @@ void parse_php_error(logerror *err, lineparser *p) {
         newline[0] = ' ';
         newline[1] = '\n';
       }
+
+      //Move to end of line and trim
+      char *c = stack_trace;
+      while(*(++c) != '\0');
+      while(isspace(*(--c))) *c = '\0';
+
       err->latest_occurrence->stack_trace = strdup(stack_trace);
 
     }
