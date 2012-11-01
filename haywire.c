@@ -211,13 +211,13 @@ void display_infobox() {
 
   size_t referer_lines = 0;
   if (app.selected->latest_occurrence->referer != NULL) {
-    x = sizeof(referer_text);
-    referer_lines = str_linecount(app.selected->latest_occurrence->referer, cols, &x);
+    x = 0; //sizeof(referer_text);
+    referer_lines = str_linecount(app.selected->latest_occurrence->referer, cols, &x) + 1;
   }
   size_t stack_trace_lines = 0;
   if (app.selected->latest_occurrence->stack_trace != NULL) {
-    x = sizeof(stack_trace_text);
-    stack_trace_lines = str_linecount(app.selected->latest_occurrence->stack_trace, cols, &x);
+    x = 0; //sizeof(stack_trace_text);
+    stack_trace_lines = str_linecount(app.selected->latest_occurrence->stack_trace, cols, &x) + 1;
   }
 
   infobox_size = 1+msg_lines+filename_lines+referer_lines+stack_trace_lines;
@@ -234,16 +234,25 @@ void display_infobox() {
   y += msg_lines;
 
   if (referer_lines) {
-    mvprintw(y, 0, "%s %s", referer_text, app.selected->latest_occurrence->referer);
+    attron(A_BOLD);
+    mvprintw(y, 0, "%s ", referer_text);
+    attroff(A_BOLD);
+    mvprintw(y+1, 0, "%s", app.selected->latest_occurrence->referer);
     y += referer_lines;
   }
 
   if (stack_trace_lines) {
-    mvprintw(y, 0, "%s %s", stack_trace_text, app.selected->latest_occurrence->stack_trace);
+    attron(A_BOLD);
+    mvprintw(y, 0, "%s ", stack_trace_text);
+    attroff(A_BOLD);
+    mvprintw(y+1, 0, "%s", app.selected->latest_occurrence->stack_trace);
     y += stack_trace_lines;
   }
 
-  mvprintw(y, 0, "%s %s:%d", location_text, app.selected->filename, app.selected->linenr);
+  attron(A_BOLD);
+  mvprintw(y, 0, "%s ", location_text);
+  attroff(A_BOLD);
+  printw("%s:%d", app.selected->filename, app.selected->linenr);
   //printw("%d", infobox_size);
 
 }
