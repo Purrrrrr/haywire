@@ -43,6 +43,7 @@ logfile *logfile_create() {
   log->sorting = SORT_DEFAULT;
   log->worstNewLine = 0;
   log->worstNewType = 0;
+  log->empty_entries = 0;
 
   return log;
 }
