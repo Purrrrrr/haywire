@@ -63,6 +63,8 @@ typedef struct logerror {
 } logerror;
 
 static inline int errortype_worse(short a, short b) {
+  if (a == 0) a = 255;
+  if (b == 0) b = 255;
   return a < b;
 }
 logerror *parse_error_line(char *line);
