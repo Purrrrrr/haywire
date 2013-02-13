@@ -306,7 +306,7 @@ void parse_php_error(logerror *err, lineparser *p) {
     err->msg = lineparser_current_position(p);
   }
 
-  if (linenr == NULL || err->filename == NULL) {
+  if (err->msg  == NULL || linenr == NULL || err->filename == NULL) {
     err->type = E_UNPARSED;
     return;
   }
