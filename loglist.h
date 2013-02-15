@@ -23,16 +23,25 @@
 #include "ghthash/ght_hash_table.h"
 #include "linereader.h"
 #include "logerror.h"
+#include <string.h>
+
+#define FILTER_PASS 1
+#define FILTER_FAIL 0
+typedef int (*logfilter)(logerror *err, void *data);
 
 typedef struct logfile {
   linereader *file;
   ght_hash_table_t *errortypes;
-  logerror *errorlist;
+  logfilter filter;
+  void *filter_data;
+  logerror *errors;
+  logerror *filtered_errors;
   short worstNewLine; //Stores the worst type of recent new lines
   short worstNewType; //Stores the worst type of recent new errors
                         //that have not been encountered before
   short sorting;
   unsigned int empty_entries;
+  unsigned int filtered_entries;
 } logfile;
 
 //Opens a log file and digs and sorts the log entries
@@ -45,6 +54,9 @@ void logfile_close(logfile *log);
 
 //Removes the error from the log file log. Assumes err is from log.
 void logfile_remove_error(logfile *log, logerror *err);
+
+void logfile_set_filter(logfile *log, logfilter filter, void *data);
+int filter_filename(logerror *err, void *data);
 
 void toggle_sort_type(logfile *log);
 void toggle_sort_direction(logfile *log);

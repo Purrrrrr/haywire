@@ -72,6 +72,12 @@ int main(int argv, char *args[]) {
     logfile_refresh(app.log);
 
     switch(c) {
+      case 'w': 
+      logfile_set_filter(app.log, &filter_filename, "libra");
+      break;
+      case 'W': 
+      logfile_set_filter(app.log, NULL, NULL);
+      break;
       case 'j': 
       case KEY_DOWN: 
       app.show_info ? list_select_change(1) : list_scroll(1);
@@ -103,7 +109,7 @@ int main(int argv, char *args[]) {
       case 'f':
       app.show_info = !app.show_info;
       if (app.show_info) {
-        logerror *err = app.log->errorlist;
+        logerror *err = app.log->errors;
         int i = app.scroll;
         while(i > 0 && err != NULL) {
           i--;
@@ -147,7 +153,7 @@ int list_row_count() {
   return maxrows - STATUS_LINE_COUNT;
 }
 void list_select_change(int direction) {
-  logerror *err = app.log->errorlist;
+  logerror *err = app.log->errors;
   int rows = list_row_count();
 
   if (app.selected == NULL) {
@@ -287,7 +293,7 @@ void display_logs() {
 
   int skip = app.scroll;
   int i = 0;
-  logerror *err = app.log->errorlist;
+  logerror *err = app.log->errors;
   while(err != NULL) {
     if (skip > 0) {
       --skip;

@@ -30,7 +30,7 @@ int main(int argv, char *args[]) {
   if (!parse_arguments(&app, argv, args)) print_usage();
   
   logfile *log = app.log;
-  logerror *err = log->errorlist;
+  logerror *err = log->errors;
 
   size_t filename_len = 256;
   char *filename = malloc(filename_len);

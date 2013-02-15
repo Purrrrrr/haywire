@@ -208,7 +208,7 @@ void bell_status_print(haywire_state *app) {
 }
 
 int get_selected(haywire_state *app) {
-  logerror *err = app->log->errorlist;
+  logerror *err = app->log->errors;
   int n = 0;
   while(err != app->selected) {
     if (err == NULL) return -1;
@@ -218,7 +218,7 @@ int get_selected(haywire_state *app) {
   return n;
 }
 void select_nth(haywire_state *app, int n) {
-  logerror *err = app->log->errorlist;
+  logerror *err = app->log->errors;
   while(n > 0) {
     if (err == NULL) break;
     err = err->next;

@@ -20,12 +20,17 @@
 #include "loglist.h"
 #include "logerror.h"
 
+//These two are compared to the results of the filter function 
+#define FILTER_REMOVE_FAILED FILTER_FAIL
+#define FILTER_REMOVE_PASSED FILTER_PASS
+
 //Helper functions
 static void update_top_errortype(short *top, logerror *err);
 logerror *errorlist_remove_error(logerror *list, logerror *err);
 logerror *errorlist_insert(logerror *list, logerror *ins);
 logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype);
 logerror *errorlist_sort(logerror *list, int sorttype);
+unsigned int loglist_filter(logerror **list, logerror **filtered, logfilter filter, void *data, unsigned short int );
 
 logfile *logfile_create() {
   logfile *log;
@@ -38,11 +43,14 @@ logfile *logfile_create() {
     return NULL;
   }
   log->file = NULL;
+  log->filter = NULL;
   log->errortypes = map;
-  log->errorlist = NULL;
+  log->errors = NULL;
+  log->filtered_errors = NULL;
   log->sorting = SORT_DEFAULT;
   log->worstNewLine = 0;
   log->worstNewType = 0;
+  log->filtered_entries = 0;
   log->empty_entries = 0;
 
   return log;
@@ -64,6 +72,8 @@ int logfile_refresh(logfile *log) {
   logerror *err;
   logerror *err_in_table;
   logerror *newlist = NULL;
+  logerror *newlist_filtered  = NULL;
+  unsigned int filtered_count = 0;
 
   while((line = linereader_getline(log->file)) != NULL) {
     err = parse_error_line(line);
@@ -85,7 +95,7 @@ int logfile_refresh(logfile *log) {
       logerror_merge(err_in_table, err);
 
       if (err_in_table->is_new == 0) {
-        log->errorlist = errorlist_remove_error(log->errorlist, err_in_table);
+        log->errors = errorlist_remove_error(log->errors, err_in_table);
         newlist = errorlist_insert(newlist, err_in_table);
       }
 
@@ -100,10 +110,19 @@ int logfile_refresh(logfile *log) {
       err->is_new = 0;
       err = err->next;
     }
+    
+    if (log->filter) {
+      filtered_count = loglist_filter(&newlist, &newlist_filtered, log->filter, log->filter_data, FILTER_REMOVE_FAILED);
+
+      newlist_filtered = errorlist_sort(newlist_filtered, log->sorting);
+    }
 
     newlist = errorlist_sort(newlist, log->sorting);
     //printf("Sorted, final merge");
-    log->errorlist = errorlist_merge(log->errorlist, newlist, log->sorting);
+    
+    log->errors = errorlist_merge(log->errors, newlist, log->sorting);
+    log->filtered_errors = errorlist_merge(log->filtered_errors, newlist_filtered, log->sorting);
+    log->filtered_entries += filtered_count;
   }
 
   return rowcount;
@@ -124,7 +143,7 @@ void logfile_close(logfile *log) {
 }
 
 int errorlist_count(logfile *log) {
-  return ght_size(log->errortypes) - log->empty_entries;
+  return ght_size(log->errortypes) - log->empty_entries - log->filtered_entries;
 } 
 logerror *errorlist_insert(logerror *list, logerror *ins) {
   //printf("Insert %d\n", ins);
@@ -212,10 +231,77 @@ void logfile_remove_error(logfile *log, logerror *err) {
   err->count = 0;
 }
 
+//Filtering functions
+void logfile_set_filter(logfile *log, logfilter filter, void *data) {
+  log->filter = filter;
+  log->filter_data = data;
+
+  if (filter == NULL) {
+    log->errors = errorlist_merge(log->errors, log->filtered_errors, log->sorting);
+    log->filtered_errors = NULL;
+    log->filtered_entries = 0;
+    return;
+  }
+
+  logerror *weeded = NULL;
+  logerror *passing = NULL;
+  int weeded_count = 0;
+  int passed_count = 0;
+
+  weeded_count = loglist_filter(&(log->errors), &weeded, filter, data, FILTER_REMOVE_FAILED);
+  passed_count = loglist_filter(&(log->filtered_errors), &passing, filter, data, FILTER_REMOVE_PASSED);
+
+  log->errors = errorlist_merge(log->errors, passing, log->sorting);
+  log->filtered_errors = errorlist_merge(log->filtered_errors, weeded, log->sorting);
+
+  log->filtered_entries = log->filtered_entries + weeded_count - passed_count;
+}
+
+/* Searches the first list and filters to the second according to the given filter and mode
+ * The mode affects whether to move the items that pass or those that don't
+ * Returns the number of items in the second list after the update.
+ */
+unsigned int loglist_filter(logerror **list, logerror **filtered, logfilter filter, void *data, unsigned short int mode) {
+  logerror *local_list = *list;
+  logerror *local_filtered = NULL;
+  logerror *last_failed = NULL;
+  logerror *next = NULL;
+  logerror *cur = local_list;
+  unsigned int filtered_count = 0;
+
+  while(cur != NULL) {
+    next = cur->next;
+    if ((*filter)(cur, data) == mode) {
+      local_list = errorlist_remove_error(local_list, cur);
+      if (last_failed == NULL) {
+        local_filtered = cur;
+      } else {
+        last_failed->next = cur;
+        cur->prev = last_failed;
+      }
+      last_failed = cur;
+      ++filtered_count;
+    }
+    cur = next;
+  }
+
+  *filtered = local_filtered;
+  *list = local_list;
+
+  return filtered_count;
+}
+int filter_filename(logerror *err, void *data) {
+  if (strstr(err->filename, (char* )data) == NULL) {
+    return FILTER_FAIL;
+  } else {
+    return FILTER_PASS;
+  }
+}
+
 //Ordering functions
 void toggle_sort_direction(logfile *log) {
   log->sorting = -log->sorting;
-  log->errorlist = errorlist_sort(log->errorlist, log->sorting);
+  log->errors = errorlist_sort(log->errors, log->sorting);
 }
 void toggle_sort_type(logfile *log) {
   short sort = log->sorting;
@@ -227,7 +313,7 @@ void toggle_sort_type(logfile *log) {
     if (sort < -SORT_MAX) sort = -1;
   }
   log->sorting = sort;
-  log->errorlist = errorlist_sort(log->errorlist, sort);
+  log->errors = errorlist_sort(log->errors, sort);
 }
 
 static inline void update_top_errortype(short *top, logerror *err) {
