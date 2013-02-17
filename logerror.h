@@ -39,6 +39,7 @@
 #define SORT_MAX 3
 
 typedef struct logerror_occurrence {
+  unsigned int rownumber;
   time_t date;
   char *referer;
   char *stack_trace;

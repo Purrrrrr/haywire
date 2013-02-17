@@ -25,6 +25,8 @@
 #include "logerror.h"
 #include "parser.c"
 
+rownumber = 0;
+
 void parse_php_error(logerror *err, lineparser *parser);
 void parse_404(logerror *err, lineparser *parser);
 logerror *logerror_init();
@@ -46,6 +48,7 @@ logerror *parse_error_line(char *line) {
   lineparser_init(&p, line);
 
   err->latest_occurrence->date = date;
+  err->latest_occurrence->rownumber = ++rownumber;
   err->key = line;
   err->keylength= strlen(line);
   err->msg = err->key;
@@ -131,6 +134,8 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
     case SORT_DATE_REVERSE:
       if (a->latest_occurrence->date > b->latest_occurrence->date) return 1;
       if (a->latest_occurrence->date < b->latest_occurrence->date) return -1;
+      if (a->latest_occurrence->rownumber > b->latest_occurrence->rownumber) return 1;
+      if (a->latest_occurrence->rownumber < b->latest_occurrence->rownumber) return -1;
       return 0;
     case SORT_COUNT:
       if (a->count < b->count) return 1;
@@ -154,6 +159,8 @@ int errorlog_cmp(logerror *a, logerror *b, short sorttype) {
   //The newest logs are shown first
   if (a->latest_occurrence->date > b->latest_occurrence->date) return -1;
   if (a->latest_occurrence->date < b->latest_occurrence->date) return 1;
+  if (a->latest_occurrence->rownumber > b->latest_occurrence->rownumber) return -1;
+  if (a->latest_occurrence->rownumber < b->latest_occurrence->rownumber) return 1;
 
   //There could be more sort criteria, but those two almost always differ anyway.
   return 0;
