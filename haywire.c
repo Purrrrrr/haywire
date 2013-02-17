@@ -72,6 +72,11 @@ int main(int argv, char *args[]) {
     logfile_refresh(app.log);
 
     switch(c) {
+      case 'c': 
+      logfile_clear(app.log);
+      app.selected = NULL;
+      app.scroll = 0;
+      break;
       case 'w': 
       logfile_set_filter(app.log, &filter_filename, "libra");
       break;

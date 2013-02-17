@@ -50,6 +50,7 @@ int logfile_add_file(logfile *log, char *filename, int startat);
 //Tests for new entries and stores them
 int logfile_refresh(logfile *log);
 int errorlist_count(logfile *log);
+void logfile_clear(logfile *log);
 void logfile_close(logfile *log);
 
 //Removes the error from the log file log. Assumes err is from log.

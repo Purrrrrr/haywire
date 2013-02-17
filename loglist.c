@@ -128,6 +128,32 @@ int logfile_refresh(logfile *log) {
   return rowcount;
 }
 
+void logfile_clear(logfile *log) {
+  ght_iterator_t iterator;
+  const void *p_key;
+  void *p_e;
+  for(p_e = ght_first(log->errortypes, &iterator, &p_key); p_e; p_e = ght_next(log->errortypes, &iterator, &p_key))
+  {
+    logerror_destroy((logerror *)p_e);
+
+  }
+  ght_finalize(log->errortypes);
+
+  ght_hash_table_t *map = ght_create(256);
+  if (map == NULL) {
+    free(log);
+    exit(EXIT_FAILURE);
+  }
+  log->errortypes = map;
+  log->errors = NULL;
+  log->filtered_errors = NULL;
+  log->worstNewLine = 0;
+  log->worstNewType = 0;
+  log->filtered_entries = 0;
+  log->empty_entries = 0;
+
+}
+
 void logfile_close(logfile *log) {
   ght_iterator_t iterator;
   const void *p_key;

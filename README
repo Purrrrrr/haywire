@@ -30,6 +30,7 @@ O                 Reverse sort
 
 i,f               Toggle log line information display
 enter, v          Open the file referenced by the selected entry in vim
+c                 Clear the display and forget all previous log entries
 q                 Exit Haywire
 
 -----
