@@ -25,7 +25,7 @@
 #include "logerror.h"
 #include "parser.c"
 
-rownumber = 0;
+unsigned int rownumber = 0;
 
 void parse_php_error(logerror *err, lineparser *parser);
 void parse_404(logerror *err, lineparser *parser);
