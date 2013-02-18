@@ -8,7 +8,7 @@ add_executable(haywire haywire.c)
 target_link_libraries (haywire ncurses)
 target_link_libraries (haywire loglist)
 target_link_libraries (haywire appstate)
-
+target_link_libraries (haywire screen)
 
 add_executable(test test.c)
 target_link_libraries (test loglist)
@@ -16,6 +16,9 @@ target_link_libraries (test appstate)
 
 add_library(appstate appstate.c)
 target_link_libraries (appstate ncurses)
+
+add_library(screen screen.c)
+target_link_libraries (screen ncurses)
 
 add_library(loglist loglist.c)
 target_link_libraries (loglist ghthash)

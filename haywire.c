@@ -24,6 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include "appstate.h"
+#include "screen.h"
 #include "loglist.h"
 
 #define STATUS_LINE_COUNT 2

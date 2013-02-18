@@ -19,8 +19,8 @@
 
 #ifndef APPSTATE_H
 #define APPSTATE_H
-#include <curses.h>
 #include "loglist.h"
+#include <curses.h>
 
 #define LOG_RED 1
 #define LOG_YELLOW 2
@@ -61,9 +61,6 @@ static const haywire_state default_state = {
 int parse_arguments(haywire_state *state, int argv, char *args[]);
 void print_usage();
 void exit_with_error(char *err);
-
-void print_statusline(haywire_state *app, int maxrows);
-void print_to_status(char *msg, short color);
 
 void toggle_bell_type(haywire_state *app);
 void toggle_bell_level(haywire_state *app);
