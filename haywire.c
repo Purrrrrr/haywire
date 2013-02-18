@@ -29,13 +29,24 @@
 #define STATUS_LINE_COUNT 2
 #define MAX_LINE_LEN 256
 
+#define MODE_NORMAL 0
+#define MODE_SEARCH 1
+
 haywire_state app;
+short mode = MODE_NORMAL; //Mode of input
 int infobox_size = 0;
 
 //Helper buffers
 size_t filename_len = 256;
 char *filename = NULL; 
 
+size_t search_filter_buffer_len = 256;
+char *search_filter = NULL; 
+unsigned int search_filter_len = 0;
+unsigned int search_filter_pos = 0;
+
+short process_keyboard(int c);
+short process_search_keyboard(int c);
 void init_screen();
 int list_row_count();
 void list_select_change(int direction);
@@ -52,7 +63,10 @@ int main(int argv, char *args[]) {
   if (!parse_arguments(&app, argv, args)) print_usage();
 
   filename = malloc(filename_len);
-  if (filename == NULL) exit(EXIT_FAILURE);
+  if (filename == NULL) exit_with_error("Error allocating memory");
+
+  search_filter = calloc(search_filter_buffer_len, sizeof(char));
+  if (search_filter == NULL) exit_with_error("Error allocating memory");
   
   //Init display
   init_screen();
@@ -66,74 +80,20 @@ int main(int argv, char *args[]) {
 
   while(1) {
     int c = getch();
-    short modified = 1; //By default every keystroke updates the screen
-    if (c == 'q') break;
-    
+    short modified;
+      
+    if (mode == MODE_NORMAL && c == 'q') break;
     logfile_refresh(app.log);
 
-    switch(c) {
-      case 'c': 
-      logfile_clear(app.log);
-      app.selected = NULL;
-      app.scroll = 0;
+    switch(mode) {
+      case MODE_NORMAL:
+        modified = process_keyboard(c);
       break;
-      case 'w': 
-      logfile_set_filter(app.log, &filter_filename, "libra");
-      break;
-      case 'W': 
-      logfile_set_filter(app.log, NULL, NULL);
-      break;
-      case 'j': 
-      case KEY_DOWN: 
-      app.show_info ? list_select_change(1) : list_scroll(1);
-      break;
-      case 'k': 
-      case KEY_UP: 
-      app.show_info ? list_select_change(-1) : list_scroll(-1);
-      break;
-      case ' ':
-      case KEY_NPAGE: 
-      list_scroll_page(1);
-      break;
-      case KEY_PPAGE: 
-      list_scroll_page(-1);
-      break;
-      case 'B':
-      toggle_bell_type(&app);
-      break;
-      case 'b':
-      toggle_bell_level(&app);
-      break;
-      case 'o':
-      toggle_sort_type(app.log);
-      break;
-      case 'O':
-      toggle_sort_direction(app.log);
-      break;
-      case 'i':
-      case 'f':
-      app.show_info = !app.show_info;
-      if (app.show_info) {
-        logerror *err = app.log->errors;
-        int i = app.scroll;
-        while(i > 0 && err != NULL) {
-          i--;
-          err = err->next;
-        }
-        app.selected = err;
-      } else {
-        app.selected = NULL;
-      }
-      break;
-      case 'v':
-      case '\r':
-      case '\n':
-      case KEY_ENTER:
-      vim(app.selected);
-      break;
-      default:
-      modified = 0; //No keystroke, not modified
+      case MODE_SEARCH:
+        modified = process_search_keyboard(c);
+        break;
     }
+
     if (app.log->worstNewLine || app.log->worstNewType) modified = 1;
     if (last_updated_in >= redraw_treshold) modified = 1;
     
@@ -150,6 +110,123 @@ int main(int argv, char *args[]) {
   logfile_close(app.log);
 
 }
+
+/* Process the given key and return 1 if the screen needs to be refreshed */
+short process_keyboard(int c) {
+  short modified = 1; //By default every keystroke updates the screen
+
+  switch(c) {
+    case '/': 
+      mode = MODE_SEARCH;
+      break; 
+    case 'c': 
+      logfile_clear(app.log);
+      app.selected = NULL;
+      app.scroll = 0;
+      break;
+    case 'w': 
+      logfile_set_filter(app.log, &filter_filename, "libra");
+      break;
+    case 'W': 
+      logfile_set_filter(app.log, NULL, NULL);
+      break;
+    case 'j': 
+    case KEY_DOWN: 
+      app.show_info ? list_select_change(1) : list_scroll(1);
+      break;
+    case 'k': 
+    case KEY_UP: 
+      app.show_info ? list_select_change(-1) : list_scroll(-1);
+      break;
+    case ' ':
+    case KEY_NPAGE: 
+      list_scroll_page(1);
+      break;
+    case KEY_PPAGE: 
+      list_scroll_page(-1);
+      break;
+    case 'B':
+      toggle_bell_type(&app);
+      break;
+    case 'b':
+      toggle_bell_level(&app);
+      break;
+    case 'o':
+      toggle_sort_type(app.log);
+      break;
+    case 'O':
+      toggle_sort_direction(app.log);
+      break;
+    case 'i':
+    case 'f':
+      app.show_info = !app.show_info;
+      if (app.show_info) {
+        logerror *err = app.log->errors;
+        int i = app.scroll;
+        while(i > 0 && err != NULL) {
+          i--;
+          err = err->next;
+        }
+        app.selected = err;
+      } else {
+        app.selected = NULL;
+      }
+      break;
+    case 'v':
+    case '\r':
+    case '\n':
+    case KEY_ENTER:
+      vim(app.selected);
+      break;
+    case KEY_RESIZE: //Prevent the default from setting modified = 0;
+      break;
+    default:
+      modified = 0; //No keystroke, not modified
+  }
+
+  return modified;
+}
+short process_search_keyboard(int c) {
+  switch(c) {
+    case '\r':
+    case '\n':
+    case KEY_ENTER:
+      mode = MODE_NORMAL;
+      break;
+    case KEY_BACKSPACE:
+      if (search_filter_pos == 0) break;
+
+      --search_filter_len;
+      --search_filter_pos;
+      search_filter[search_filter_pos] = '\0';
+
+      break;
+    case ERR: //halfdelay returns nothing
+      break;
+    default:
+      if (search_filter_len == search_filter_buffer_len) {
+        search_filter_len *= 2;
+        search_filter = realloc(search_filter, search_filter_len);
+
+        if (search_filter == NULL) {
+          exit_with_error("Error allocating memory");
+        }
+      }
+      search_filter[search_filter_pos] = (char)c;
+      search_filter_pos++;
+      search_filter_len++;
+      break;
+  }
+  
+  if (search_filter_len > 0) {
+    logfile_set_filter(app.log, &filter_filename, search_filter);
+  } else {
+    logfile_set_filter(app.log, NULL, NULL);
+  }
+
+  return 1;
+}
+
 int list_row_count() {
   int x = 0;
   int maxrows = 0;
@@ -353,7 +430,7 @@ void vim(logerror *err) {
     } else {
       execlp("vim", "vim", err->filename ,NULL );
     }
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
   } else if (id != -1) {
     int status = 0;
     wait(&status);
@@ -373,8 +450,7 @@ void init_screen() {
 
   if(has_colors() == FALSE) {
     endwin();
-    printf("Your terminal does not support color\n");
-    exit(EXIT_FAILURE);
+    exit_with_error("Your terminal does not support color");
   }
   start_color();
   use_default_colors();

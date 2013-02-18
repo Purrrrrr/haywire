@@ -60,6 +60,7 @@ static const haywire_state default_state = {
 
 int parse_arguments(haywire_state *state, int argv, char *args[]);
 void print_usage();
+void exit_with_error(char *err);
 
 void print_statusline(haywire_state *app, int maxrows);
 void print_to_status(char *msg, short color);

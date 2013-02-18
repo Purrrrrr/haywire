@@ -97,6 +97,10 @@ void print_usage() {
   printf("-a Tells the analyzer to append an additional file to the analysis without following it\n");
   exit(EXIT_SUCCESS);
 }
+void exit_with_error(char *err) {
+  fprintf(stderr, "%s\n", err);
+  exit(EXIT_FAILURE);
+}
 
 int status_x = 0;
 
@@ -115,6 +119,13 @@ void print_statusline(haywire_state *app, int maxrows) {
 
   move(0,0);
   printw("%d-%d of %d", app->scroll+1, bottomitem, itemcount);
+  if (app->log->filter == &filter_filename) {
+    attron(A_BOLD);
+    printw(" Filter: ");
+    attroff(A_BOLD);
+    printw("%s", (char *)app->log->filter_data);
+  }
+
 }
 void print_to_status(char *msg, short color) {
   if (msg == NULL) return;
