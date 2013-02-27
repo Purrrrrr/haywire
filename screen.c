@@ -76,8 +76,9 @@ static const char referer_text[] = "Referer:";
 static const char stack_trace_text[] = "Stack Trace:";
 
 void refresh_screen(haywire_state *app) {
-  int maxrows = list_row_count(app);
   display_infobox(app);
+
+  int maxrows = list_row_count(app);
   display_logs(app, maxrows);
   display_statusline(app, maxrows);
 }
