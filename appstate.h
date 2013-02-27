@@ -31,7 +31,7 @@
 #define BELL_ON_NEW_ERRORTYPE 2
 #define BELLTYPE_MAX 2
 
-typedef struct {
+typedef struct haywire_state {
   int bell_level; //One of the log error levels
   short bell_type;
   time_t last_error_date;
@@ -40,9 +40,16 @@ typedef struct {
   logfile *log;
   logerror *selected;
   int scroll;
-  short show_info;
-  int infobox_size;
-  WINDOW *screen;
+  struct {
+    /* A callback function to print a status/command line 
+     * in the interface 
+     * Params: app state, preferred status position y and x cordinates
+     */
+    void (*status_line_printer)(struct haywire_state *app, int y, int x);
+    short show_info;
+    int infobox_size;
+    WINDOW *screen;
+  } screen;
 } haywire_state;
 
 //const haywire_state default_state;
@@ -55,9 +62,12 @@ static const haywire_state default_state = {
     NULL, //Log
     NULL, //Selected entry
     0, //Scroll
-    1, //Show_info
-    0, //Infobox size
-    NULL //Screen
+    {
+      NULL, //Command line printer
+      1, //Show_info
+      0, //Infobox size
+      NULL //Screen
+    },
 };
 
 int parse_arguments(haywire_state *state, int argv, char *args[]);

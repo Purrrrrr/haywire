@@ -9,7 +9,9 @@ static size_t filename_len = 0;
 static char *filename = NULL; 
 
 void display_infobox(haywire_state *app);
-void display_logs(haywire_state *app);
+void display_logs(haywire_state *app, int maxrows);
+void display_statusline(haywire_state *app, int maxrows);
+void print_to_status(char *msg, short color);
 int str_linecount(char *str, int linelen, int *x);
 void time_status_print();
 void bell_status_print(haywire_state *app);
@@ -19,11 +21,11 @@ void order_status_print(haywire_state *app);
  *   Utility functions      *
  ****************************/
 void init_screen(haywire_state *app) {
-  app->screen = initscr();
+  app->screen.screen = initscr();
   noecho();
   nonl();
   halfdelay(app->update_delay);
-  keypad(app->screen, TRUE);
+  keypad(app->screen.screen, TRUE);
   clear();
   curs_set(0);
 
@@ -59,8 +61,8 @@ int str_linecount(char *str, int linelen, int *x) {
 int list_row_count(haywire_state *app) {
   int x = 0;
   int maxrows = 0;
-  getmaxyx(app->screen, maxrows, x);
-  if (app->show_info) maxrows -= app->infobox_size;
+  getmaxyx(app->screen.screen, maxrows, x);
+  if (app->screen.show_info) maxrows -= app->screen.infobox_size;
   return maxrows - STATUS_LINE_COUNT;
 }
 
@@ -74,18 +76,16 @@ static const char referer_text[] = "Referer:";
 static const char stack_trace_text[] = "Stack Trace:";
 
 void refresh_screen(haywire_state *app) {
+  int maxrows = list_row_count(app);
   display_infobox(app);
-  display_logs(app);
+  display_logs(app, maxrows);
+  display_statusline(app, maxrows);
 }
 
-void display_logs(haywire_state *app) {
-
-  int maxrows = list_row_count(app);
-  print_statusline(app, maxrows);
-  
+void display_logs(haywire_state *app, int maxrows) {
   move(1, 0);
   standout();
-  hline(' ', getmaxx(app->screen));
+  hline(' ', getmaxx(app->screen.screen));
   printw("  TIME CNT MSG");
   standend();
 
@@ -96,7 +96,7 @@ void display_logs(haywire_state *app) {
     if (skip > 0) {
       --skip;
     } else if (i < maxrows) {
-      print_error(app, err, app->show_info && err == app->selected, i+2);
+      print_error(app, err, app->screen.show_info && err == app->selected, i+2);
       ++i;
     } else {
       break;
@@ -109,11 +109,11 @@ void display_logs(haywire_state *app) {
 /* Displays the infobox and updates into the app state the size of it in rows */
 void display_infobox(haywire_state *app) {
   int infobox_size = 0;
-  if (!app->show_info || app->selected == NULL) return;
+  if (!app->screen.show_info || app->selected == NULL) return;
   
   int cols,rows;
   cols=rows=0;
-  getmaxyx(app->screen, rows, cols);
+  getmaxyx(app->screen.screen, rows, cols);
 
   int x = 0;
   size_t msg_lines = str_linecount(app->selected->msg, cols, &x);
@@ -171,7 +171,7 @@ void display_infobox(haywire_state *app) {
   printw("%s:%d", app->selected->filename, app->selected->linenr);
   //printw("%d", infobox_size);
   
-  app->infobox_size = infobox_size;
+  app->screen.infobox_size = infobox_size;
 }
 
 /****************************
@@ -179,8 +179,8 @@ void display_infobox(haywire_state *app) {
  ****************************/
 int status_x = 0;
 
-void print_statusline(haywire_state *app, int maxrows) {
-  status_x = getmaxx(app->screen);
+void display_statusline(haywire_state *app, int maxrows) {
+  status_x = getmaxx(app->screen.screen);
 
   bell_status_print(app);
   print_to_status(" - ", 0); 
@@ -197,11 +197,9 @@ void print_statusline(haywire_state *app, int maxrows) {
 
   move(0,0);
   printw("%d-%d of %d", scroll, bottomitem, itemcount);
-  if (app->log->filter == &filter_filename) {
-    attron(A_BOLD);
-    printw(" Filter: ");
-    attroff(A_BOLD);
-    printw("%s", (char *)app->log->filter_data);
+
+  if (app->screen.status_line_printer != NULL) {
+    (*app->screen.status_line_printer)(app, getcury(app->screen.screen), getcurx(app->screen.screen));
   }
 }
 
@@ -308,7 +306,7 @@ void print_error(haywire_state *app, logerror *err, int selected, int row) {
 
   snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d %*s", get_log_time(err->latest_occurrence), err->count, err->msg, filename, err->linenr, (int)(sizeof(linebuffer)), "");
   move(row, 0);
-  addnstr(linebuffer, getmaxx(app->screen));
+  addnstr(linebuffer, getmaxx(app->screen.screen));
 
   if (selected) standend();
   attroff(COLOR_PAIR(color));

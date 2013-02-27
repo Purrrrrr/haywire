@@ -44,6 +44,7 @@ unsigned int search_filter_pos = 0;
 
 short process_keyboard(int c);
 short process_search_keyboard(int c);
+void print_search_status_line(haywire_state *app, int y, int x);
 void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
@@ -108,6 +109,7 @@ short process_keyboard(int c) {
   switch(c) {
     case '/': 
       mode = MODE_SEARCH;
+      app.screen.status_line_printer = &print_search_status_line;
       break; 
     case 'c': 
       logfile_clear(app.log);
@@ -116,11 +118,11 @@ short process_keyboard(int c) {
       break;
     case 'j': 
     case KEY_DOWN: 
-      app.show_info ? list_select_change(1) : list_scroll(1);
+      app.screen.show_info ? list_select_change(1) : list_scroll(1);
       break;
     case 'k': 
     case KEY_UP: 
-      app.show_info ? list_select_change(-1) : list_scroll(-1);
+      app.screen.show_info ? list_select_change(-1) : list_scroll(-1);
       break;
     case ' ':
     case KEY_NPAGE: 
@@ -143,8 +145,8 @@ short process_keyboard(int c) {
       break;
     case 'i':
     case 'f':
-      app.show_info = !app.show_info;
-      if (app.show_info) {
+      app.screen.show_info = !app.screen.show_info;
+      if (app.screen.show_info) {
         logerror *err = app.log->errors;
         int i = app.scroll;
         while(i > 0 && err != NULL) {
@@ -176,6 +178,9 @@ short process_search_keyboard(int c) {
     case '\n':
     case KEY_ENTER:
       mode = MODE_NORMAL;
+      if (search_filter_len == 0) {
+        app.screen.status_line_printer = NULL;
+      }
       break;
     case 21: //^U, clear line
       while(search_filter_len > 0) {
@@ -219,6 +224,15 @@ short process_search_keyboard(int c) {
   }
 
   return 1;
+}
+
+void print_search_status_line(haywire_state *app, int y, int x) {
+  attron(A_BOLD);
+  printw(" Filter: ");
+  attroff(A_BOLD);
+  if (app->log->filter_data != NULL) {
+    printw("%s", (char *)app->log->filter_data);
+  }
 }
 
 void list_select_change(int direction) {
