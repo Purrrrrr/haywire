@@ -42,6 +42,7 @@ char *search_filter = NULL;
 unsigned int search_filter_len = 0;
 unsigned int search_filter_pos = 0;
 
+void change_mode(int mode);
 short process_keyboard(int c);
 short process_search_keyboard(int c);
 void print_search_status_line(haywire_state *app, int y, int x);
@@ -83,7 +84,7 @@ int main(int argv, char *args[]) {
       break;
       case MODE_SEARCH:
         modified = process_search_keyboard(c);
-        break;
+      break;
     }
 
     if (app.log->worstNewLine || app.log->worstNewType) modified = 1;
@@ -102,13 +103,27 @@ int main(int argv, char *args[]) {
 
 }
 
+void change_mode(int newmode) {
+  mode = newmode;
+  switch(mode) {
+    case MODE_NORMAL:
+      curs_set(0);
+      if (search_filter_len == 0) {
+        app.screen.status_line_printer = NULL;
+      }
+      break;
+    case MODE_SEARCH:
+      curs_set(1);
+    break;
+  }
+}
 /* Process the given key and return 1 if the screen needs to be refreshed */
 short process_keyboard(int c) {
   short modified = 1; //By default every keystroke updates the screen
 
   switch(c) {
     case '/': 
-      mode = MODE_SEARCH;
+      change_mode(MODE_SEARCH);
       app.screen.status_line_printer = &print_search_status_line;
       break; 
     case 'c': 
@@ -177,21 +192,18 @@ short process_search_keyboard(int c) {
     case '\r':
     case '\n':
     case KEY_ENTER:
-      mode = MODE_NORMAL;
-      if (search_filter_len == 0) {
-        app.screen.status_line_printer = NULL;
-      }
+      change_mode(MODE_NORMAL);
       break;
     case 21: //^U, clear line
       while(search_filter_len > 0) {
         search_filter[--search_filter_len] = '\0';
       }
       search_filter_pos = 0;
-      mode = MODE_NORMAL;
+      change_mode(MODE_NORMAL);
       break; 
     case KEY_BACKSPACE:
       if (search_filter_pos == 0) {
-        mode = MODE_NORMAL;
+        change_mode(MODE_NORMAL);
         break;
       }
 
