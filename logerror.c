@@ -244,7 +244,9 @@ char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t
   }
   int len = strlen(path) + ups*3 + 1;
   if (len > *n) {
+    if (*n == 0) *n = 256;
     while(len > *n) *n *= 2;
+
     *buffer = realloc(*buffer, *n);
   }
   int pos = 0;

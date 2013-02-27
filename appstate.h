@@ -41,6 +41,7 @@ typedef struct {
   logerror *selected;
   int scroll;
   short show_info;
+  int infobox_size;
   WINDOW *screen;
 } haywire_state;
 
@@ -55,6 +56,7 @@ static const haywire_state default_state = {
     NULL, //Selected entry
     0, //Scroll
     1, //Show_info
+    0, //Infobox size
     NULL //Screen
 };
 

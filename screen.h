@@ -22,6 +22,13 @@
 #include "appstate.h"
 #include <curses.h>
 
+//Convert CTRL('A') to the keycode returned by ^A when getch'd
+#define CTRL(x) (x - 'A')
+
+void init_screen(haywire_state *app);
+void refresh_screen(haywire_state *app);
+int list_row_count(haywire_state *app);
 void print_statusline(haywire_state *app, int maxrows);
 void print_to_status(char *msg, short color);
+void print_error(haywire_state *app, logerror *err, int selected, int row);
 #endif

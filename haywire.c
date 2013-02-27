@@ -27,15 +27,11 @@
 #include "screen.h"
 #include "loglist.h"
 
-#define STATUS_LINE_COUNT 2
-#define MAX_LINE_LEN 256
-
 #define MODE_NORMAL 0
 #define MODE_SEARCH 1
 
 haywire_state app;
 short mode = MODE_NORMAL; //Mode of input
-int infobox_size = 0;
 
 //Helper buffers
 size_t filename_len = 256;
@@ -48,15 +44,9 @@ unsigned int search_filter_pos = 0;
 
 short process_keyboard(int c);
 short process_search_keyboard(int c);
-void init_screen();
-int list_row_count();
 void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
-int str_linecount(char *str, int linelen, int *x);
-void display_infobox();
-void display_logs();
-void print_error(logerror *err, int selected, int row);
 void vim(logerror *err);
 
 int main(int argv, char *args[]) {
@@ -70,7 +60,7 @@ int main(int argv, char *args[]) {
   if (search_filter == NULL) exit_with_error("Error allocating memory");
   
   //Init display
-  init_screen();
+  init_screen(&app);
 
 /*  logfile_refresh(app.log);
   errorlist_sort(app.log, app.log->sorting);
@@ -100,8 +90,7 @@ int main(int argv, char *args[]) {
     
     if (modified) {
       clear();
-      display_infobox();
-      display_logs();
+      refresh_screen(&app);
       ring_bells(&app);
       last_updated_in = 0;
     } else last_updated_in++;
@@ -124,12 +113,6 @@ short process_keyboard(int c) {
       logfile_clear(app.log);
       app.selected = NULL;
       app.scroll = 0;
-      break;
-    case 'w': 
-      logfile_set_filter(app.log, &filter_filename, "libra");
-      break;
-    case 'W': 
-      logfile_set_filter(app.log, NULL, NULL);
       break;
     case 'j': 
     case KEY_DOWN: 
@@ -194,8 +177,18 @@ short process_search_keyboard(int c) {
     case KEY_ENTER:
       mode = MODE_NORMAL;
       break;
+    case 21: //^U, clear line
+      while(search_filter_len > 0) {
+        search_filter[--search_filter_len] = '\0';
+      }
+      search_filter_pos = 0;
+      mode = MODE_NORMAL;
+      break; 
     case KEY_BACKSPACE:
-      if (search_filter_pos == 0) break;
+      if (search_filter_pos == 0) {
+        mode = MODE_NORMAL;
+        break;
+      }
 
       --search_filter_len;
       --search_filter_pos;
@@ -228,16 +221,9 @@ short process_search_keyboard(int c) {
   return 1;
 }
 
-int list_row_count() {
-  int x = 0;
-  int maxrows = 0;
-  getmaxyx(app.screen, maxrows, x);
-  if (app.show_info) maxrows -= infobox_size;
-  return maxrows - STATUS_LINE_COUNT;
-}
 void list_select_change(int direction) {
   logerror *err = app.log->errors;
-  int rows = list_row_count();
+  int rows = list_row_count(&app);
 
   if (app.selected == NULL) {
     app.selected = err;
@@ -260,12 +246,12 @@ void list_select_change(int direction) {
   if (n <= app.scroll) list_scroll(n-app.scroll);
 }
 void list_scroll_page(int scroll) {
-  list_scroll(scroll*list_row_count());
+  list_scroll(scroll*list_row_count(&app));
 }
 void list_scroll(int scroll) {
   app.scroll += scroll;
   int maxscroll = errorlist_count(app.log);
-  int rows = list_row_count();
+  int rows = list_row_count(&app);
   maxscroll -= rows;
   if (app.scroll > maxscroll) app.scroll = maxscroll;
   if (app.scroll < 0) app.scroll = 0;
@@ -274,149 +260,6 @@ void list_scroll(int scroll) {
     if (n >= app.scroll + rows) select_nth(&app, app.scroll+rows-1);
     if (n < app.scroll) select_nth(&app, app.scroll);
   }
-}
-
-static const char location_text[] = "Location:";
-static const char referer_text[] = "Referer:";
-static const char stack_trace_text[] = "Stack Trace:";
-
-void display_infobox() {
-  infobox_size = 0;
-  if (!app.show_info || app.selected == NULL) return;
-  
-  int cols,rows;
-  cols=rows=0;
-  getmaxyx(app.screen, rows, cols);
-
-  int x = 0;
-  size_t msg_lines = str_linecount(app.selected->msg, cols, &x);
-  x = sizeof(location_text);
-  size_t filename_lines = str_linecount(app.selected->filename, cols, &x);
-
-  size_t linenr_length = 1;
-  int i = app.selected->linenr;
-  while(i > 10) { i /= 10; ++linenr_length; }
-  if (x + linenr_length + 1 > cols) ++filename_lines;
-
-  size_t referer_lines = 0;
-  if (app.selected->latest_occurrence->referer != NULL) {
-    x = 0; //sizeof(referer_text);
-    referer_lines = str_linecount(app.selected->latest_occurrence->referer, cols, &x) + 1;
-  }
-  size_t stack_trace_lines = 0;
-  if (app.selected->latest_occurrence->stack_trace != NULL) {
-    x = 0; //sizeof(stack_trace_text);
-    stack_trace_lines = str_linecount(app.selected->latest_occurrence->stack_trace, cols, &x) + 1;
-  }
-
-  infobox_size = 1+msg_lines+filename_lines+referer_lines+stack_trace_lines;
-  
-  int y = rows-infobox_size;
-  move(y, 0);
-  standout();
-  hline(' ', cols);
-  mvprintw(y, 0, " Selected message:");
-  mvprintw(y, cols-23, " (Toggle info using i)");
-  standend();
-
-  mvprintw(++y, 0, "%s", app.selected->msg);
-  y += msg_lines;
-
-  if (referer_lines) {
-    attron(A_BOLD);
-    mvprintw(y, 0, "%s ", referer_text);
-    attroff(A_BOLD);
-    mvprintw(y+1, 0, "%s", app.selected->latest_occurrence->referer);
-    y += referer_lines;
-  }
-
-  if (stack_trace_lines) {
-    attron(A_BOLD);
-    mvprintw(y, 0, "%s ", stack_trace_text);
-    attroff(A_BOLD);
-    mvprintw(y+1, 0, "%s", app.selected->latest_occurrence->stack_trace);
-    y += stack_trace_lines;
-  }
-
-  attron(A_BOLD);
-  mvprintw(y, 0, "%s ", location_text);
-  attroff(A_BOLD);
-  printw("%s:%d", app.selected->filename, app.selected->linenr);
-  //printw("%d", infobox_size);
-
-}
-int str_linecount(char *str, int linelen, int *x) {
-  int lines = 1;
-  while(*str != '\0') {
-    if (*str == '\n') {
-      ++lines;
-      *x = 0;
-    } else {
-      ++(*x);
-      if (*x >= linelen) {
-        ++lines;
-        *x = 0;
-      }
-    }
-    ++str;
-  }
-  return lines;
-}
-
-void display_logs() {
-
-  int maxrows = list_row_count();
-  print_statusline(&app, maxrows);
-  
-  move(1, 0);
-  standout();
-  hline(' ', getmaxx(app.screen));
-  printw("  TIME CNT MSG");
-  standend();
-
-  int skip = app.scroll;
-  int i = 0;
-  logerror *err = app.log->errors;
-  while(err != NULL) {
-    if (skip > 0) {
-      --skip;
-    } else if (i < maxrows) {
-      print_error(err, app.show_info && err == app.selected, i+2);
-      ++i;
-    } else {
-      break;
-    }
-    err = err->next;
-  } 
-
-  refresh();
-}
-void print_error(logerror *err, int selected, int row) {
-  logerror_nicepath(err, app.relative_path, &filename, &filename_len);
-  short color = 0;
-  char linebuffer[MAX_LINE_LEN] = "";
-
-  switch(err->type) {
-    case E_ERROR:
-    case E_PARSE:
-      color = LOG_RED;
-      break;
-    case E_WARNING:
-    case E_NOTICE:
-      color = LOG_YELLOW;
-      break;
-    default:
-      color = LOG_GREEN;
-  }
-  attron(COLOR_PAIR(color));
-  if (selected) standout();
-
-  snprintf(linebuffer, sizeof(linebuffer), "%s %3d %s: %s:%d %*s", get_log_time(err->latest_occurrence), err->count, err->msg, filename, err->linenr, (int)(sizeof(linebuffer)), "");
-  move(row, 0);
-  addnstr(linebuffer, getmaxx(app.screen));
-
-  if (selected) standend();
-  attroff(COLOR_PAIR(color));
 }
 void vim(logerror *err) {
   if (err == NULL) return;
@@ -437,28 +280,5 @@ void vim(logerror *err) {
     wait(&status);
   }
 
-  init_screen();
+  init_screen(&app);
 }
-
-void init_screen() {
-  app.screen = initscr();
-  noecho();
-  nonl();
-  halfdelay(app.update_delay);
-  keypad(app.screen, TRUE);
-  clear();
-  curs_set(0);
-
-  if(has_colors() == FALSE) {
-    endwin();
-    exit_with_error("Your terminal does not support color");
-  }
-  start_color();
-  use_default_colors();
-  init_pair(LOG_RED,COLOR_RED,-1);
-  init_pair(LOG_YELLOW,COLOR_YELLOW,-1);
-  init_pair(LOG_GREEN,COLOR_GREEN,-1);
-
-  refresh();
-}
-
