@@ -265,6 +265,20 @@ void logfile_remove_error(logfile *log, logerror *err) {
   logerror_destroy(err);
 }
 
+#ifdef debug
+void debug_list(char *msg, logerror *list) {
+  FILE *f = fopen("debug.log", "a");
+  fprintf(f, "%s\n", msg);
+  while (list != NULL) {
+    fprintf(f, "%d<-%ld->%d %.50s\n", list->prev, list, list->next, list->msg);
+    list = list->next;
+  }
+  fclose(f);
+}
+#else
+#define debug_list(m,l) ;
+#endif
+
 //Filtering functions
 void logfile_set_filter(logfile *log, logfilter filter, void *data) {
   log->filter = filter;
@@ -282,8 +296,18 @@ void logfile_set_filter(logfile *log, logfilter filter, void *data) {
   int weeded_count = 0;
   int passed_count = 0;
 
+  debug_list("---------------", NULL);
+  debug_list("Changing filter", NULL);
+  debug_list(data, NULL);
+  debug_list("errors", log->errors);
+  debug_list("filtered_errors", log->filtered_errors);
   weeded_count = loglist_filter(&(log->errors), &weeded, filter, data, FILTER_REMOVE_FAILED);
   passed_count = loglist_filter(&(log->filtered_errors), &passing, filter, data, FILTER_REMOVE_PASSED);
+  debug_list("--------------", NULL);
+  debug_list("errors", log->errors);
+  debug_list("weeded", weeded);
+  debug_list("filtered_errors", log->filtered_errors);
+  debug_list("passing", passing);
 
   log->errors = errorlist_merge(log->errors, passing, log->sorting);
   log->filtered_errors = errorlist_merge(log->filtered_errors, weeded, log->sorting);
@@ -303,22 +327,32 @@ unsigned int loglist_filter(logerror **list, logerror **filtered, logfilter filt
   logerror *cur = local_list;
   unsigned int filtered_count = 0;
 
+  //FILE *f = fopen("debug.log", "a");
+  //fprintf(f, "Filtering...\n");
   while(cur != NULL) {
     next = cur->next;
+    //fprintf(f, "%d<-%ld->%d %.50s", cur->prev, cur, cur->next, cur->msg);
     if ((*filter)(cur, data) == mode) { //Move to filtered
+      //fprintf(f, " Moving...\n");
       local_list = errorlist_remove_error(local_list, cur);
       if (last_failed == NULL) {
         local_filtered = cur;
       } else {
         last_failed->next = cur;
         cur->prev = last_failed;
-        cur->next = NULL;
       }
       last_failed = cur;
       ++filtered_count;
+    } else {
+      //fprintf(f, "\n");
     }
     cur = next;
   }
+  if (last_failed != NULL) {
+    last_failed->next = NULL;
+    local_filtered->prev = NULL;
+  }
+  //fclose(f);
 
   *filtered = local_filtered;
   *list = local_list;
