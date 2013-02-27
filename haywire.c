@@ -46,6 +46,7 @@ void change_mode(int mode);
 short process_keyboard(int c);
 short process_search_keyboard(int c);
 void print_search_status_line(haywire_state *app, int y, int x);
+void list_remove_selected();
 void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
@@ -122,6 +123,9 @@ short process_keyboard(int c) {
       change_mode(MODE_SEARCH);
       app.screen.status_line_printer = &print_search_status_line;
       break; 
+    case 'd': 
+      list_remove_selected();
+      break;
     case 'c': 
       logfile_clear(app.log);
       app.selected = NULL;
@@ -241,6 +245,24 @@ void print_search_status_line(haywire_state *app, int y, int x) {
   if (app->log->filter_data != NULL) {
     printw("%s", search_filter);
   }
+}
+
+void list_remove_selected() {
+  if (app.selected == NULL) {
+    return;
+  }
+  logerror *sel = app.selected;
+  
+  if (sel->next != NULL) {
+    app.selected = sel->next;
+  } else if (sel->prev != NULL) {
+    app.selected = sel->prev;
+  } else {
+    app.selected = NULL;
+    app.scroll = 0;
+  }
+  logfile_remove_error(app.log, sel);
+  list_scroll(0);
 }
 
 void list_select_change(int direction) {

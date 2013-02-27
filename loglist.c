@@ -254,8 +254,15 @@ logerror *errorlist_sort(logerror *err, int sorttype) {
 } 
 
 void logfile_remove_error(logfile *log, logerror *err) {
-  ++log->empty_entries;
-  err->count = 0;
+  if (log->filter == NULL || (*log->filter)(err, log->filter_data) == FILTER_PASS) {
+    log->errors = errorlist_remove_error(log->errors, err);
+  } else {
+    log->filtered_errors = errorlist_remove_error(log->filtered_errors, err);
+    log->filtered_entries--;
+  }
+
+  ght_remove(log->errortypes, err->keylength, err->key);
+  logerror_destroy(err);
 }
 
 //Filtering functions
