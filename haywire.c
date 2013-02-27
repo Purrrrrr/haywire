@@ -239,7 +239,7 @@ void print_search_status_line(haywire_state *app, int y, int x) {
   printw(" Filter: ");
   attroff(A_BOLD);
   if (app->log->filter_data != NULL) {
-    printw("%s %d %d %d", search_filter, search_filter_len, search_filter_pos, strlen(search_filter));
+    printw("%s", search_filter);
   }
 }
 
