@@ -57,7 +57,7 @@ void logfile_close(logfile *log);
 void logfile_remove_error(logfile *log, logerror *err);
 
 void logfile_set_filter(logfile *log, logfilter filter, void *data);
-int filter_filename(logerror *err, void *data);
+int filter_stringsearch(logerror *err, void *data);
 
 void toggle_sort_type(logfile *log);
 void toggle_sort_direction(logfile *log);

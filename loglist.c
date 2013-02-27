@@ -44,6 +44,7 @@ logfile *logfile_create() {
   }
   log->file = NULL;
   log->filter = NULL;
+  log->filter_data = NULL;
   log->errortypes = map;
   log->errors = NULL;
   log->filtered_errors = NULL;
@@ -297,13 +298,14 @@ unsigned int loglist_filter(logerror **list, logerror **filtered, logfilter filt
 
   while(cur != NULL) {
     next = cur->next;
-    if ((*filter)(cur, data) == mode) {
+    if ((*filter)(cur, data) == mode) { //Move to filtered
       local_list = errorlist_remove_error(local_list, cur);
       if (last_failed == NULL) {
         local_filtered = cur;
       } else {
         last_failed->next = cur;
         cur->prev = last_failed;
+        cur->next = NULL;
       }
       last_failed = cur;
       ++filtered_count;
@@ -316,12 +318,16 @@ unsigned int loglist_filter(logerror **list, logerror **filtered, logfilter filt
 
   return filtered_count;
 }
-int filter_filename(logerror *err, void *data) {
-  if (strstr(err->filename, (char* )data) == NULL) {
-    return FILTER_FAIL;
-  } else {
+int filter_stringsearch(logerror *err, void *data) {
+  if (data == NULL) return FILTER_PASS;
+  char *needle = (char *)data;
+  if (strstr(err->filename, needle) != NULL) {
     return FILTER_PASS;
+  } 
+  if (strstr(err->msg, needle) != NULL) {
+    return FILTER_PASS; 
   }
+  return FILTER_FAIL; 
 }
 
 //Ordering functions

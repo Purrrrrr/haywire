@@ -64,10 +64,6 @@ int main(int argv, char *args[]) {
   //Init display
   init_screen(&app);
 
-/*  logfile_refresh(app.log);
-  errorlist_sort(app.log, app.log->sorting);
-  select_nth(&app, 0); */
-
   short redraw_treshold = 600/app.update_delay;
   short last_updated_in = redraw_treshold; //Update immediately to show the screen.
 
@@ -230,7 +226,7 @@ short process_search_keyboard(int c) {
   }
   
   if (search_filter_len > 0) {
-    logfile_set_filter(app.log, &filter_filename, search_filter);
+    logfile_set_filter(app.log, &filter_stringsearch, search_filter);
   } else {
     logfile_set_filter(app.log, NULL, NULL);
   }
@@ -243,7 +239,7 @@ void print_search_status_line(haywire_state *app, int y, int x) {
   printw(" Filter: ");
   attroff(A_BOLD);
   if (app->log->filter_data != NULL) {
-    printw("%s", (char *)app->log->filter_data);
+    printw("%s %d %d %d", search_filter, search_filter_len, search_filter_pos, strlen(search_filter));
   }
 }
 
