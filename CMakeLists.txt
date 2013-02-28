@@ -15,7 +15,7 @@ target_link_libraries (test loglist)
 target_link_libraries (test appstate)
 
 add_library(appstate appstate.c)
-target_link_libraries (appstate ncurses)
+target_link_libraries (appstate linereader)
 
 add_library(screen screen.c)
 target_link_libraries (screen ncurses)
