@@ -1,6 +1,6 @@
 - Haywire -
 
-A small ncurses program written in C to display apache+php error logs in real time.
+A small ncurses program written in C to display and search apache+php error logs in real time.
 
 ---------
 Features:
@@ -12,6 +12,7 @@ Features:
 * Follows the log file in real time
 * Press enter to open the source of the error in vim (Editor configuration is yet to be done)
 * Rings the terminal bell when new errors occur (This can be turned off)
+* Logs can be filtered by keyword
 
 -------------------
 Keyboard shortcuts:
@@ -28,19 +29,42 @@ b                 Change the severity of errors to cause bell ringing
 o                 Toggle between sorting criteria
 O                 Reverse sort
 
+/                 Filter log entries by keyword, press enter to escape 
+                  filter edit modes
 d                 Remove the selected entry from the list
-/                 Filter log entries by keyword, press enter to escape filter edit mode
+
 i,f               Toggle log line information display
 enter, v          Open the file referenced by the selected entry in vim
 c                 Clear the display and forget all previous log entries
 q                 Exit Haywire
 
+------------------
+Configuration file
+------------------
+
+Haywire tries to read the file .haywirerc in your home directory 
+for the following directives:
+
+read-file: filename   <- Read a file without following it
+follow-file: filename <- Read a file and follow it
+linecount: number|all <- How many lines are read from the file being 
+                         followed, either a number or the keyword all
+                         to read the whole file
+
+Any file not begginning with a directive is ignored, by convention
+lines begginning with the hash sign # are used for comments.
+
+The follow-file and linecount options can be overridden by 
+command line parameters.
+
+Example file:
+linecount: 100
+follow-file: /var/log/apache2/error.log
+
 -----
 TODO:
 -----
 
-Filtering logs by keyword
-Some configuration options
 Support for terminals without color
 Support for editors besides vim
 An installation script
@@ -48,7 +72,8 @@ An installation script
 ------------------------------
 Extensions and libraries used:
 ------------------------------
-CMake
+CMake for compilation
+ncurses
 GNU getline extensions
 libghthash 0.6.2; Basic source included in the misc folder. 
   For the whole package see:

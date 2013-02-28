@@ -21,21 +21,38 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <pwd.h>
 
+typedef struct haywire_parse_state {
+  logfile *log;
+  int read_lines;
+  char *filename;
+} haywire_parse_state;
+
+char *get_default_config_file();
+void parse_config_file(haywire_parse_state *state, char *filename);
+
+/* Parses the given command line arguments and
+ * the application configuration file
+ */
 int parse_arguments(haywire_state *state, int argv, char *args[]) {
-  if (argv < 2) {
-    return 0;
-  }
+  int filename_specified = 0;
+  int read_additional_filenames = 0;
+  haywire_parse_state p_state = {
+    NULL,
+    10,
+    NULL,
+  };
 
   state->relative_path = getcwd(NULL,0);
-
-  //Initial log reading
-  logfile *log = logfile_create();
-  if (log == NULL) exit(EXIT_FAILURE);
-
-  int read_lines = 10;
-  int read_additional_filenames = 0;
-  char *filename = NULL;
+  p_state.log = logfile_create();
+  if (p_state.log == NULL) exit_with_error("Could not allocate data structure");
+  
+  //Get default config file path and parse that file
+  char *configfile = get_default_config_file();
+  parse_config_file(&p_state, configfile);
+  free(configfile);
 
   for(int a = 1; a < argv; ++a) {
     char *arg = args[a];
@@ -43,46 +60,118 @@ int parse_arguments(haywire_state *state, int argv, char *args[]) {
       switch(arg[1]) {
         case 'n':
           ++a;
-          if (!sscanf(args[a], "%d", &read_lines)) {
-            logfile_close(log);
+          if (!sscanf(args[a], "%d", &p_state.read_lines)) {
+            logfile_close(p_state.log);
             return 0;
           }
           break;
         case 'w':
-          read_lines = READ_ALL_LINES;
+          p_state.read_lines = READ_ALL_LINES;
           break;
         case 'a':
-          if (filename == NULL) {
-            logfile_close(log);
+          if (p_state.filename == NULL) {
+            logfile_close(p_state.log);
             return 0;
           }
           read_additional_filenames = 1;
           break;
       }
-    } else if (filename == NULL) {
-      filename = arg;
+    } else if (p_state.filename == NULL || filename_specified == 0) {
+      filename_specified = 1;
+      p_state.filename = arg;
     } else if (read_additional_filenames) {
-      if (!logfile_add_file(log, arg, READ_ALL_LINES)) {
-        printf("Error opening file %s\n", arg);
+      if (!logfile_add_file(p_state.log, arg, READ_ALL_LINES)) {
+        fprintf(stderr, "Error opening file %s\n", arg);
         exit(EXIT_FAILURE);
       }
     } else {
-      logfile_close(log);
+      logfile_close(p_state.log);
       return 0;
     }
   }
-  if (filename == NULL) {
-    logfile_close(log);
+
+  if (p_state.filename == NULL) {
+    logfile_close(p_state.log);
     return 0;
   }
-  if (!logfile_add_file(log, filename, read_lines)) {
-    printf("Error opening file %s\n", filename);
+  if (!logfile_add_file(p_state.log, p_state.filename, p_state.read_lines)) {
+    fprintf(stderr, "Error opening file %s\n", p_state.filename);
     exit(EXIT_FAILURE);
   }
 
-  state->log = log;
+  state->log = p_state.log;
   
   return 1;
+}
+
+static char *config_filename = ".haywirerc";
+static char *config_main_filename_str = "follow-file: ";
+static char *config_add_filename_str = "read-file: ";
+static char *config_linecount_str = "linecount: ";
+static char *config_linecount_all_str = "all";
+
+/* Parses the given configuration file updating the given parse state
+ * with the linecount and filename specified in the file.
+ * Opens any files specified by read-file directives immediately
+ */
+void parse_config_file(haywire_parse_state *state, char *filename) {
+  linereader *file = linereader_open(filename, READ_ALL_LINES);
+  if (file == NULL) return;
+
+  char *line = NULL;
+  char *val = NULL;
+
+  while((line = linereader_getline(file)) != NULL) {
+    if (strstr(line, config_main_filename_str) == line) {
+      val = line + strlen(config_main_filename_str);
+      if (state->filename != NULL) {
+        linereader_close(file);
+        return;
+      }
+      state->filename = calloc(strlen(val) + 1, 1);
+      strcpy(state->filename, val);
+      
+      continue;
+    }
+    if (strstr(line, config_add_filename_str) == line) {
+      val = line + strlen(config_add_filename_str);
+      if (!logfile_add_file(state->log, val, READ_ALL_LINES)) {
+        fprintf(stderr, "Error opening file %s\n", filename);
+        exit(EXIT_FAILURE);
+      }
+      continue;
+    }
+    if (strstr(line, config_linecount_str) == line) {
+      val = line + strlen(config_linecount_str);
+      if (strstr(val, config_linecount_all_str) == val) {
+        state->read_lines = READ_ALL_LINES;
+      } else if (!sscanf(val, "%d", &state->read_lines)) {
+        linereader_close(file);
+        return;
+      }
+      continue;
+    }
+  }
+
+  linereader_close(file);
+}
+/* Returns something like /home/user/.haywirerc in a malloc'd buffer */
+char *get_default_config_file() {
+  uid_t uid = getuid();
+  struct passwd *uinfo = getpwuid(uid);
+
+  int dirlen = strlen(uinfo->pw_dir);
+  char *buffer = malloc(dirlen + 1 + strlen(config_filename) + 1);
+  if (buffer == NULL) {
+    exit_with_error("Could not allocate filename buffer.");
+  }
+
+  strcpy(buffer, uinfo->pw_dir);
+  buffer[dirlen] = '/';
+  strcpy(buffer + dirlen + 1, config_filename);
+  buffer[dirlen + 1 + strlen(config_filename)] = '\0';
+  
+  return buffer; 
 }
 
 void print_usage() {
@@ -90,7 +179,7 @@ void print_usage() {
   printf("-n Determines how many last lines are included from the file.\n");
   printf("   The default is 10.\n");
   printf("-w Read the whole file\n");
-  printf("-a Tells the analyzer to append an additional file to the analysis without following it\n");
+  printf("-a Tells the analyzer to append an additional file(s) to the analysis without following it\\them\n");
   exit(EXIT_SUCCESS);
 }
 void exit_with_error(char *err) {

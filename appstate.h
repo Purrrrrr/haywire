@@ -19,6 +19,7 @@
 
 #ifndef APPSTATE_H
 #define APPSTATE_H
+#include "linereader.h"
 #include "loglist.h"
 #include <curses.h>
 
