@@ -165,7 +165,9 @@ void logfile_close(logfile *log) {
   }
   ght_finalize(log->errortypes);
   
-  linereader_close(log->file);
+  if (log->file != NULL) {
+    linereader_close(log->file);
+  }
   free(log);
 }
 
