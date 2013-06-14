@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
 #include "appstate.h"
 #include "screen.h"
 #include "loglist.h"
@@ -320,8 +321,18 @@ void vim(logerror *err) {
     }
     exit(EXIT_SUCCESS);
   } else if (id != -1) {
+    //We wan't to ignore the window resize signal while showing our editor
+    struct sigaction ignore_action, old_action;
+    ignore_action.sa_handler = SIG_IGN;
+    ignore_action.sa_flags = 0;
+    sigemptyset (&ignore_action.sa_mask);
+    sigaction(SIGWINCH, &ignore_action, &old_action);
+
     int status = 0;
     wait(&status);
+    
+    //Restore the old signal response
+    sigaction(SIGWINCH, &old_action, NULL);
   }
 
   init_screen(&app);
