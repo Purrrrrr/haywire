@@ -24,6 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include <signal.h>
+#include <ctype.h>
 #include "appstate.h"
 #include "screen.h"
 #include "loglist.h"
@@ -38,7 +39,7 @@ short mode = MODE_NORMAL; //Mode of input
 size_t filename_len = 256;
 char *filename = NULL; 
 
-size_t search_filter_buffer_len = 256;
+size_t search_filter_buffer_len = 64;
 char *search_filter = NULL; 
 unsigned int search_filter_len = 0;
 unsigned int search_filter_pos = 0;
@@ -46,6 +47,7 @@ unsigned int search_filter_pos = 0;
 void change_mode(int mode);
 short process_keyboard(int c);
 short process_search_keyboard(int c);
+void search_delete_previous_characters(int num);
 void print_search_status_line(haywire_state *app, int y, int x);
 void list_remove_selected();
 void list_select_change(int direction);
@@ -189,36 +191,69 @@ short process_keyboard(int c) {
   return modified;
 }
 short process_search_keyboard(int c) {
+  int d = 0;
+
   switch(c) {
     case '\r':
     case '\n':
     case KEY_ENTER:
       change_mode(MODE_NORMAL);
       break;
-    case 21: //^U, clear line
-      while(search_filter_len > 0) {
+    case 21: //^U, clear line before cursor
+      search_delete_previous_characters(search_filter_pos);
+      break; 
+    case 23: //^W, clear word
+      while(!isalnum(search_filter[search_filter_pos-1-d])) {
+        d++;
+      }
+      while(isalnum(search_filter[search_filter_pos-1-d])) {
+        d++;
+      }
+      search_delete_previous_characters(d);
+
+      break;
+    case 8: //^H
+    case KEY_BACKSPACE:
+      search_delete_previous_characters(1);
+      break;
+    case 11: //^K, clear line after cursor
+      while (search_filter_pos < search_filter_len) {
         search_filter[--search_filter_len] = '\0';
       }
-      search_filter_pos = 0;
-      change_mode(MODE_NORMAL);
       break; 
-    case KEY_BACKSPACE:
-      if (search_filter_pos == 0) {
-        change_mode(MODE_NORMAL);
-        break;
+    case KEY_DC: //Delete
+      if (search_filter_pos < search_filter_len) {
+        ++search_filter_pos;
+        search_delete_previous_characters(1);
       }
-
-      --search_filter_len;
-      --search_filter_pos;
-      search_filter[search_filter_pos] = '\0';
-
+      break;
+    case KEY_LEFT: 
+      if (search_filter_pos > 0) {
+        --search_filter_pos;
+      }
+      break;
+    case KEY_RIGHT: 
+      ++search_filter_pos;
+      if (search_filter_pos > search_filter_len) {
+        search_filter_pos = search_filter_len;
+      }
+      break;
+    case 1: //^A to start of line
+      search_filter_pos = 0;
+      break;
+    case 5: //^E to end of line
+      search_filter_pos = search_filter_len;
       break;
     case ERR: //halfdelay returns nothing
       break;
     default:
+      if (!isprint(c)) break;
       if (search_filter_len == search_filter_buffer_len) {
-        search_filter_len *= 2;
-        search_filter = realloc(search_filter, search_filter_len);
+        search_filter_buffer_len *= 2;
+        search_filter = realloc(search_filter, search_filter_buffer_len);
+        for(int i = search_filter_len; i < search_filter_buffer_len; ++i) {
+          search_filter[i] = '\0';
+        }
 
         if (search_filter == NULL) {
           exit_with_error("Error allocating memory");
@@ -239,12 +274,35 @@ short process_search_keyboard(int c) {
   return 1;
 }
 
+void search_delete_previous_characters(int num) {
+  if (search_filter_len == 0) {
+    change_mode(MODE_NORMAL);
+    return;
+  }
+
+  if (num > search_filter_pos) {
+    num = search_filter_pos;
+  }
+  search_filter_pos -= num;
+  search_filter_len -= num;
+
+  int move_chars = search_filter_len-search_filter_pos;
+  for(int i = 0; i < move_chars; i++) {
+    search_filter[search_filter_pos+i] = search_filter[search_filter_pos+i+num];
+  }
+  for(int i = 0; i < num; i++) {
+    search_filter[search_filter_len+i] = '\0';
+  }
+}
+
 void print_search_status_line(haywire_state *app, int y, int x) {
   attron(A_BOLD);
   printw(" Filter: ");
   attroff(A_BOLD);
+
   if (app->log->filter_data != NULL) {
     printw("%s", search_filter);
+    move(y,x+search_filter_pos+9);
   }
 }
 
