@@ -86,6 +86,7 @@ void linereader_seek(FILE *logfile, int initial_row_count) {
   }
   
   fseeko(logfile, buffer_pos+pos_in_buffer+1, SEEK_SET);
+  free(buffer);
 }
 char *linereader_getline(linereader *r) {
   ssize_t len = getline(&r->buffer, &r->bufferlength, r->file);

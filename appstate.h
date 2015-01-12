@@ -21,6 +21,7 @@
 #define APPSTATE_H
 #include "linereader.h"
 #include "loglist.h"
+#include "apacheLogParser.h"
 #include <curses.h>
 
 #define LOG_RED 1

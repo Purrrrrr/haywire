@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+static char *defaultLogFormat = "[%t] [%l] [client\\ %a] %M% ,\\ referer:\\ %{referer}i";
+
 typedef struct haywire_parse_state {
   logfile *log;
   int read_lines;
@@ -47,6 +49,7 @@ int parse_arguments(haywire_state *state, int argv, char *args[]) {
 
   state->relative_path = getcwd(NULL,0);
   p_state.log = logfile_create();
+  p_state.log->logformatString  = defaultLogFormat;
   if (p_state.log == NULL) exit_with_error("Could not allocate data structure");
   
   //Get default config file path and parse that file
@@ -60,6 +63,7 @@ int parse_arguments(haywire_state *state, int argv, char *args[]) {
       switch(arg[1]) {
         case 'n':
           ++a;
+          if (a >= argv) return 0;
           if (!sscanf(args[a], "%d", &p_state.read_lines)) {
             logfile_close(p_state.log);
             return 0;
@@ -67,6 +71,19 @@ int parse_arguments(haywire_state *state, int argv, char *args[]) {
           break;
         case 'w':
           p_state.read_lines = READ_ALL_LINES;
+          break;
+        case 'F':
+          ++a;
+          if (a >= argv) return 0;
+          logParseToken *parser = parseLogFormatString(args[a]);
+          if (parser != NULL) {
+            p_state.log->logformatString = args[a];
+            p_state.log->logformat = parser;
+          } else {
+            fprintf(stderr, "Error parsing log format \"%s\"\n", args[a]);
+            logfile_close(p_state.log);
+            return 0;
+          }
           break;
         case 'a':
           if (p_state.filename == NULL) {
@@ -100,11 +117,17 @@ int parse_arguments(haywire_state *state, int argv, char *args[]) {
   }
 
   state->log = p_state.log;
+
+  //Filename was copied from config file
+  if (!filename_specified) {
+    free(p_state.filename);
+  }
   
   return 1;
 }
 
 static char *config_filename = ".haywirerc";
+static char *config_logformat_str = "log-format: ";
 static char *config_main_filename_str = "follow-file: ";
 static char *config_add_filename_str = "read-file: ";
 static char *config_linecount_str = "linecount: ";
@@ -126,6 +149,7 @@ void parse_config_file(haywire_parse_state *state, char *filename) {
       val = line + strlen(config_main_filename_str);
       if (state->filename != NULL) {
         linereader_close(file);
+        free(state->filename);
         return;
       }
       state->filename = calloc(strlen(val) + 1, 1);
@@ -136,7 +160,19 @@ void parse_config_file(haywire_parse_state *state, char *filename) {
     if (strstr(line, config_add_filename_str) == line) {
       val = line + strlen(config_add_filename_str);
       if (!logfile_add_file(state->log, val, READ_ALL_LINES)) {
-        fprintf(stderr, "Error opening file %s\n", filename);
+        fprintf(stderr, "Error opening file %s\n", val);
+        exit(EXIT_FAILURE);
+      }
+      continue;
+    }
+    if (strstr(line, config_logformat_str) == line) {
+      val = line + strlen(config_logformat_str);
+      logParseToken *parser = parseLogFormatString(val);
+      if (parser != NULL) {
+        state->log->logformatString  = val;
+        state->log->logformat = parser;
+      } else {
+        fprintf(stderr, "Error parsing log format \"%s\"\n", val);
         exit(EXIT_FAILURE);
       }
       continue;
@@ -175,10 +211,11 @@ char *get_default_config_file() {
 }
 
 void print_usage() {
-  printf("Usage: haywire [-w|-n lines] filename [-a filename [filename] ...]\n");
+  printf("Usage: haywire [-F format] [-w|-n lines] filename [-a filename [filename] ...]\n");
   printf("-n Determines how many last lines are included from the file.\n");
   printf("   The default is 10.\n");
   printf("-w Read the whole file\n");
+  printf("-F The format of the logs as an Apache ErrorLogFormat string\n");
   printf("-a Tells the analyzer to append an additional file(s) to the analysis without following it\\them\n");
   exit(EXIT_SUCCESS);
 }

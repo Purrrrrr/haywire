@@ -16,6 +16,7 @@ target_link_libraries (test appstate)
 
 add_library(appstate appstate.c)
 target_link_libraries (appstate linereader)
+target_link_libraries (appstate loglist)
 
 add_library(screen screen.c)
 target_link_libraries (screen ncurses)
@@ -26,8 +27,11 @@ target_link_libraries (loglist linereader)
 target_link_libraries (loglist logerror)
 
 add_library(logerror logerror.c)
+target_link_libraries (logerror apacheLogParser)
 
 add_library(linereader linereader.c)
+
+add_library(apacheLogParser apacheLogParser.c)
 
 add_library(ghthash ghthash/hash_table.c)
 target_link_libraries (ghthash ghthash_hashfunctions)

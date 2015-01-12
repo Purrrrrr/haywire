@@ -20,6 +20,11 @@
 #ifndef PARSE_LOG_H
 #define PARSE_LOG_H
 
+#define _XOPEN_SOURCE
+#define __USE_XOPEN
+#define _GNU_SOURCE
+#include <time.h>
+
 /* The more severe error values are always greater */
 #define E_ERROR 1
 #define E_PARSE 2
@@ -63,12 +68,14 @@ typedef struct logerror {
   struct logerror *next;
 } logerror;
 
+#include "apacheLogParser.h"
+
 static inline int errortype_worse(short a, short b) {
   if (a == 0) a = 255;
   if (b == 0) b = 255;
   return a < b;
 }
-logerror *parse_error_line(char *line);
+logerror *parse_error_line(logParseToken *parser, char *line);
 int logerror_merge(logerror *this, logerror *that);
 int errorlog_cmp(logerror *a, logerror *b, short sorttype);
 char *logerror_nicepath(logerror *this, char *relative_to, char **buffer, size_t *n);

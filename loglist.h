@@ -22,6 +22,7 @@
 
 #include "ghthash/ght_hash_table.h"
 #include "linereader.h"
+#include "apacheLogParser.h"
 #include "logerror.h"
 #include <string.h>
 
@@ -32,6 +33,8 @@ typedef int (*logfilter)(logerror *err, void *data);
 typedef struct logfile {
   linereader *file;
   ght_hash_table_t *errortypes;
+  char *logformatString;
+  logParseToken *logformat;
   logfilter filter;
   void *filter_data;
   logerror *errors;

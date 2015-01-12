@@ -42,6 +42,8 @@ logfile *logfile_create() {
     free(log);
     return NULL;
   }
+  log->logformatString = NULL;
+  log->logformat = NULL;
   log->file = NULL;
   log->filter = NULL;
   log->filter_data = NULL;
@@ -58,6 +60,10 @@ logfile *logfile_create() {
 }
 
 int logfile_add_file(logfile *log, char *filename, int initial_row_count) {
+  if (log->logformat == NULL) {
+    log->logformat = parseLogFormatString(log->logformatString);
+  }
+
   log->file = linereader_open(filename, initial_row_count);
   if (log->file == NULL) {
     return 0; 
@@ -77,7 +83,7 @@ int logfile_refresh(logfile *log) {
   unsigned int filtered_count = 0;
 
   while((line = linereader_getline(log->file)) != NULL) {
-    err = parse_error_line(line);
+    err = parse_error_line(log->logformat, line);
     if (err == NULL) continue;
 
     update_top_errortype(&log->worstNewLine, err);
@@ -168,6 +174,7 @@ void logfile_close(logfile *log) {
   if (log->file != NULL) {
     linereader_close(log->file);
   }
+  destroyLogParser(log->logformat);
   free(log);
 }
 

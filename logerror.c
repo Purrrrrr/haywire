@@ -31,26 +31,21 @@ void parse_php_error(logerror *err, lineparser *parser);
 void parse_404(logerror *err, lineparser *parser);
 logerror *logerror_init();
 
-logerror *parse_error_line(char *line) {
+logerror *parse_error_line(logParseToken *parser, char *line) {
+  time_t date = 0;
+  char *message = parseLogLine(parser, line, &date);
+  if (message == NULL) {
+    return NULL;
+  }
+
   lineparser p;
-  lineparser_init(&p, line);
-
-  time_t date = lineparser_read_time(&p, "[%a %b %d %T %Y] ");
-  if (date == 0) return NULL;
-  
-  if (!lineparser_skip_past(&p, "[error] [")) return NULL;
-  if (!lineparser_skip_past(&p, "] ")) return NULL;
-
   logerror *err = logerror_init();
-  if (err == NULL) return NULL;
-
-  line = strdup(lineparser_current_position(&p));
-  lineparser_init(&p, line);
+  lineparser_init(&p, message);
 
   err->latest_occurrence->date = date;
   err->latest_occurrence->rownumber = ++rownumber;
-  err->key = line;
-  err->keylength= strlen(line);
+  err->key = message;
+  err->keylength= strlen(message);
   err->msg = err->key;
 
   if (err->key == NULL) {

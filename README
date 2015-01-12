@@ -50,6 +50,11 @@ follow-file: filename <- Read a file and follow it
 linecount: number|all <- How many lines are read from the file being 
                          followed, either a number or the keyword all
                          to read the whole file
+log-format: string    <- The format of the log files in the same format as 
+                         an Apache ErrorLogFormat directive.
+                         Can be specified multiple times for different files,
+                         but needs to be specified before the file it applies to,
+                         otherwise file reading may not work properly.
 
 Any file not begginning with a directive is ignored, by convention
 lines begginning with the hash sign # are used for comments.
@@ -67,6 +72,7 @@ TODO:
 
 Support for terminals without color
 Support for editors besides vim
+Support for nonstandard log formats
 An installation script
 
 ------------------------------
