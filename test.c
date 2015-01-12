@@ -41,7 +41,7 @@ int main(int argv, char *args[]) {
 
     printf("%d %s: %s:%d (%d times)\n", err->type, err->msg, filename, err->linenr, err->count);
     logerror_occurrence *occ = err->latest_occurrence;
-    while(0 && occ != NULL) {
+    while(occ != NULL) {
       printf("\t%s", get_log_time(occ));
       if (occ->referer != NULL) {
         printf(" referer: %s", occ->referer);
