@@ -17,7 +17,7 @@
  * along with Haywire.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+#include "debug.h"
 #include "logerror.h"
 #include "apacheLogParser.h"
 #include <stdlib.h>
@@ -89,10 +89,10 @@ logParseToken *parseLogFormatString(char *fmt) {
   logParseToken *cur = NULL;
 
   while(fmt != NULL && *fmt != '\0') {
-    //printf("kala: \"%s\"\n", fmt);
+    //debug_print("kala: \"%s\"\n", fmt);
     logParseToken *tok = make_token();
     tok->string_before = getText(&fmt);
-    //printf("tursas: \"%s\"\n", fmt);
+    //debug_print("tursas: \"%s\"\n", fmt);
 
     if (tok->string_before == NULL) {
       return NULL;
@@ -102,14 +102,14 @@ logParseToken *parseLogFormatString(char *fmt) {
     if (*fmt == '%') {
       if (fmt[1] != ' ') {
         fmt = parse_format_sign(tok, fmt);
-        //printf("fmt: \"%s\"\n", fmt);
+        //debug_print("fmt: \"%s\"\n", fmt);
         if (fmt == NULL) {
           return NULL;
         }
         if (*fmt != ' ' && *fmt != '%') {
           tok->string_after = getText(&fmt);
           tok->string_len_after = strlen(tok->string_after);
-          //printf("fmt: \"%s\"\n", fmt);
+          //debug_print("fmt: \"%s\"\n", fmt);
         }
       } else {
         fmt+=2;
@@ -189,7 +189,7 @@ char *parse_format_sign(logParseToken *tok, char *fmt) {
     }
     fmt++;
   }
-  //printf("possu: \"%s\"\n", fmt);
+  //debug_print("possu: \"%s\"\n", fmt);
 
   //Skip extra modifiers inside {}
   if (*fmt == '{') {
@@ -200,11 +200,11 @@ char *parse_format_sign(logParseToken *tok, char *fmt) {
     if (*fmt == '\0') return NULL;
     fmt++;
   }
-  //printf("possu: \"%s\"\n", fmt);
+  //debug_print("possu: \"%s\"\n", fmt);
   if (*fmt == '\0') return NULL;
   tok->formatChar = *fmt;
   fmt++;
-  //printf("possu: \"%s\"\n", fmt);
+  //debug_print("possu: \"%s\"\n", fmt);
 
   switch(tok->formatChar) {
     case 'M': //The actual log message
@@ -356,7 +356,7 @@ char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoin
   
   //Loop through all the possible candidates to match next
   while(1) {
-    printf("Going for the next token (%s%%%c%s), it is %s token\n", 
+    debug_print("Going for the next token (%s%%%c%s), it is %s token\n", 
         next ? next->string_before : "",
         next ? next->formatChar: '0',
         next ? next->string_after: "",
@@ -371,17 +371,17 @@ char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoin
       stringsToMatch++;
     }
     for(int s = 0; s < stringsToMatch; s++) {
-      printf("We need to match \"%s\"\n", matchStrings[s]);
+      debug_print("We need to match \"%s\"\n", matchStrings[s]);
     }
     
     char *curEndPoint = parsePoint;
     while (curEndPoint) {
-      printf("Seeking from \"%s\"\n", curEndPoint);
+      debug_print("Seeking from \"%s\"\n", curEndPoint);
       char *searchPosition = curEndPoint;
       int curString = 0;
       if (!current->deterministic) {
         if (stringsToMatch) {
-          printf("Seeking \"%s\"\n", matchStrings[0]);
+          debug_print("Seeking \"%s\"\n", matchStrings[0]);
           //Seek to the next possible place.
           curEndPoint = strstr(curEndPoint,matchStrings[0]);
           if (!curEndPoint) {
@@ -401,7 +401,7 @@ char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoin
       int matched = 1;
       //Loop the (remaining) strings to be matched
       for(int s = curString; s < stringsToMatch; s++) {
-        printf("Skipping \"%s\" at \"%s\"\n", matchStrings[s], searchPosition);
+        debug_print("Skipping \"%s\" at \"%s\"\n", matchStrings[s], searchPosition);
         searchPosition = skipString(searchPosition, matchStrings[s], matchStringLengths[s]);
         if (!searchPosition) {
           matched = 0;
@@ -410,7 +410,7 @@ char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoin
       }
 
       if (matched) {
-        printf("Matched at \"%s\"\n", searchPosition);
+        debug_print("Matched at \"%s\"\n", searchPosition);
         char *parseResult = next ? parseLogToken(next, searchPosition, data) : searchPosition;
         if (parseResult && *parseResult == '\0') {
           *parseEndPoint = curEndPoint;
@@ -433,9 +433,9 @@ char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoin
 }
 
 char *parseLogToken(logParseToken *parser, char *parsePoint, logdata *data) {
-  printf("\n\nParsing \"%s%%%c%s\" from \"%s\"\n", parser->string_before, parser->formatChar, parser->string_after, parsePoint);
+  debug_print("\n\nParsing \"%s%%%c%s\" from \"%s\"\n", parser->string_before, parser->formatChar, parser->string_after, parsePoint);
   if (parsePoint == NULL) return parsePoint;
-  printf("%d\n", parser->type);
+  debug_print("%d\n", parser->type);
   
   char *end = NULL;
   char *result = NULL;

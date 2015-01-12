@@ -28,19 +28,7 @@ haywire_state app;
 int main(int argv, char *args[]) {
   app = default_state;
 
-  printf("format: \"%s\"\n","[%t] [%l] [client\\ %a] %M% ,referer\\ %{referer}i");
-
   if (!parse_arguments(&app, argv, args)) print_usage();
-
-  logParseToken *a = app.log->logformat;
-  printf("------------------\n");
-  while(a != NULL) {
-    printf("before: \"%s\"\n",a->string_before);
-    printf("type: %d\n",a->type);
-    printf("after: \"%s\"\n",a->string_after);
-    a = a->next;
-    printf("------------------\n");
-  }
   
   logfile *log = app.log;
   logerror *err = log->errors;
