@@ -7,6 +7,7 @@ Features:
 ---------
 
 * Opens and parses an error log file to display a list of different error messages 
+* Configurable log formats (The default one is "[%t] [%l] [client\\ %a] %M% ,\\ referer:\\ %{referer}i", newer apache versions seem to use a newer one. See the section on the configuration file for more details.)
 * Scrollable list with last date, count and filename information
 * Different types of errors are displayed in different colors
 * Follows the log file in real time
@@ -63,6 +64,8 @@ The follow-file and linecount options can be overridden by
 command line parameters.
 
 Example file:
+#Use the newer Apache log format:
+log-format: [%t] [%l] [pid %P] %F: %E: [client %a] %M% ,\ referer:\ %{referer}i
 linecount: 100
 follow-file: /var/log/apache2/error.log
 
@@ -72,7 +75,6 @@ TODO:
 
 Support for terminals without color
 Support for editors besides vim
-Support for nonstandard log formats
 An installation script
 
 ------------------------------
