@@ -7,7 +7,8 @@ Features:
 ---------
 
 * Opens and parses an error log file to display a list of different error messages 
-* Configurable log formats (The default one is "[%t] [%l] [client\\ %a] %M% ,\\ referer:\\ %{referer}i", newer apache versions seem to use a newer one. See the section on the configuration file for more details.)
+* Configurable log formats (The default one is "[%t] [%l] [client\\ %a] %M% ,\\ referer:\\ %{referer}i",
+  newer apache versions seem to use a newer one. See the section on the configuration file for more details.)
 * Scrollable list with last date, count and filename information
 * Different types of errors are displayed in different colors
 * Follows the log file in real time
@@ -35,7 +36,9 @@ O                 Reverse sort
 d                 Remove the selected entry from the list
 
 i,f               Toggle log line information display
-enter, v          Open the file referenced by the selected entry in vim
+enter, v          Open the file referenced by the selected entry in the 
+                  default editor (or vim if the EDITOR environment variable 
+                  is not specified)
 c                 Clear the display and forget all previous log entries
 q                 Exit Haywire
 
@@ -74,7 +77,6 @@ TODO:
 -----
 
 Support for terminals without color
-Support for editors besides vim
 An installation script
 
 ------------------------------

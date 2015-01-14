@@ -44,6 +44,10 @@ char *search_filter = NULL;
 unsigned int search_filter_len = 0;
 unsigned int search_filter_pos = 0;
 
+char *editor_path = NULL;
+char *editor_filename = NULL;
+int editor_supports_line_numbers = 0;
+
 void change_mode(int mode);
 short process_keyboard(int c);
 short process_search_keyboard(int c);
@@ -53,6 +57,7 @@ void list_remove_selected();
 void list_select_change(int direction);
 void list_scroll_page(int scroll);
 void list_scroll(int scroll);
+void determine_default_editor();
 void vim(logerror *err);
 
 int main(int argv, char *args[]) {
@@ -364,18 +369,44 @@ void list_scroll(int scroll) {
     if (n < app.scroll) select_nth(&app, app.scroll);
   }
 }
+void determine_default_editor() {
+  char *editor = getenv("EDITOR");
+  editor_path = editor ? editor : "vim";
+  
+  //Determine filename by skipping everything after slashes
+  editor_filename = editor_path;
+  char *p = editor_filename;
+  while (*p) {
+    if (*p == '/') editor_filename = p;
+    p++;
+  }
+
+  //TODO: check for support. At least nano, pico, vi, vim, and emacs support the +linenr switch
+  char *linenr_supporting_editors[] = {"vim", "vi", "pico", "nano", "emacs"};
+  for (int i = 0; i < 5; i++) {
+    if (strcmp(linenr_supporting_editors[i], editor_filename) == 0) {
+      editor_supports_line_numbers = 1;
+      break;
+    }
+  }
+
+}
 void vim(logerror *err) {
   if (err == NULL) return;
   endwin();
+
+  if (editor_path == NULL) {
+    determine_default_editor();
+  }
   
   pid_t id = fork();
   if (id == 0) {
-    if (err->linenr >= 0) {
+    if (err->linenr >= 0 && editor_supports_line_numbers) {
       char linenr[64] = "";
       snprintf(linenr, sizeof(linenr), "+%d", err->linenr);
-      execlp("vim", "vim", linenr, err->filename ,NULL );
+      execlp(editor_path, editor_filename, linenr, err->filename, (char *)NULL );
     } else {
-      execlp("vim", "vim", err->filename ,NULL );
+      execlp(editor_path, editor_filename, err->filename, (char *)NULL );
     }
     exit(EXIT_SUCCESS);
   } else if (id != -1) {
