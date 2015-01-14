@@ -21,21 +21,29 @@
 #include "logerror.h"
 #include "apacheLogParser.h"
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
+//Different token types and behaviours
+//Just eats a string
 #define TOKEN_STRING 1
-#define TOKEN_GARBAGE 2
+//Just eats all characters and optionally stores them to a field
+#define TOKEN_WILDCARD 2
+//Runs a procedure that handles parsing of the token
 #define TOKEN_FUNC 3
-#define TOKEN_MESSAGE 4
+//TODO: add a character class wildcard type if needed?
 
-
+typedef struct {
+  char *start;
+  char *end;
+} stringrange;
 
 struct logdata {
   time_t date;
-  char *messageStart;
-  char *messageEnd;
+  stringrange message;
+  stringrange referer;
 };
 
 char *getText(char **textPosition);
@@ -55,6 +63,7 @@ logParseToken *make_token() {
   ret->type = 0;
   ret->optional = 0;
   ret->deterministic = 1;
+  ret->logdatafield = 0;
   ret->string_before = "";
   ret->string_after = "";
   ret->string_len_before = 0;
@@ -209,7 +218,8 @@ char *parse_format_sign(logParseToken *tok, char *fmt) {
   switch(tok->formatChar) {
     case 'M': //The actual log message
       tok->deterministic = 0;
-      tok->type = TOKEN_MESSAGE;
+      tok->type = TOKEN_WILDCARD;
+      tok->logdatafield = offsetof(logdata, message);
       break;
     case 't':
       /* %t  The current time
@@ -234,11 +244,14 @@ char *parse_format_sign(logParseToken *tok, char *fmt) {
     case 'E':
     case 'F':
     case 'i':
+      if (parameters && strncmp("referer}", parameters, strlen("referer}")) == 0) {
+        tok->logdatafield = offsetof(logdata, referer);
+      }
     case 'n':
       tok->optional = can_be_empty;
     default:
       tok->deterministic = 0;
-      tok->type = TOKEN_GARBAGE;
+      tok->type = TOKEN_WILDCARD;
   }
 
   return fmt;
@@ -306,30 +319,35 @@ static inline char *skipString(char *line, char *skip, unsigned int len);
 
 char *advanceParse(logParseToken *current, char *parsePoint, char **parseEndPoint, logdata *data);
 char *parseLogToken(logParseToken *parser, char *line, logdata *data);
-char *parseLogLine(logParseToken *parser, char *line, time_t *time) {
+char *parseLogLine(logParseToken *parser, char *line, time_t *time, char **referer) {
   logdata data = {
-    0, NULL, NULL
+    0, {NULL, NULL}, {NULL, NULL}
   };
   logParseToken startToken = {
     ' ',
     TOKEN_STRING,
     1,
     0,
-    "",
-    "",
     0,
     0,
-    NULL,
-    parser 
+    0,
+    "",
+    "",
+    parser,
+    NULL
   };
   char *dummy = NULL;
   
   if (advanceParse(&startToken, line, &dummy, &data) == NULL) return NULL;
-  if (data.messageStart == NULL || data.messageEnd == NULL) return NULL;
+  if (data.message.start == NULL || data.message.end == NULL) return NULL;
   if (data.date == 0) return NULL;
   *time = data.date;
 
-  return strndup(data.messageStart, data.messageEnd - data.messageStart);
+  if (data.referer.start != NULL && data.referer.end != NULL) {
+    *referer = strndup(data.referer.start, data.referer.end - data.referer.start);
+  }
+
+  return strndup(data.message.start, data.message.end - data.message.start);
 }
 
 static inline char *skipString(char *line, char *skip, unsigned int len) {
@@ -447,13 +465,13 @@ char *parseLogToken(logParseToken *parser, char *parsePoint, logdata *data) {
       if (parsePoint) {
         return advanceParse(parser, parsePoint, &end, data);
       }
-    case TOKEN_MESSAGE:
-    case TOKEN_GARBAGE:
+    case TOKEN_WILDCARD:
       result = advanceParse(parser, parsePoint, &end, data);
       if (result != NULL) {
-        if (parser->type == TOKEN_MESSAGE) {
-          data->messageStart = parsePoint;
-          data->messageEnd = end;
+        if (parser->logdatafield) {
+          stringrange *field = (stringrange *)((char*)(data) + parser->logdatafield);
+          field->start = parsePoint;
+          field->end = end;
         }
         return result;
       }

@@ -27,16 +27,17 @@ typedef struct logParseToken {
   char type; //Bool
   char deterministic; //Bool, 1 iff the token can only consume a fixed amount of characters
   char optional; //Bool
-  char *string_before;
-  char *string_after;
+  size_t logdatafield; //Which field in the logdata structure to use
   unsigned int string_len_before;
   unsigned int string_len_after;
-  logParser parser;
+  char *string_before;
+  char *string_after;
   struct logParseToken *next;
+  logParser parser;
 } logParseToken;
 
 logParseToken *parseLogFormatString(char *fmt);
 void destroyLogParser(logParseToken *parser);
-char *parseLogLine(logParseToken *parser, char *line, time_t *time);
+char *parseLogLine(logParseToken *parser, char *line, time_t *time, char **referer);
 
 #endif

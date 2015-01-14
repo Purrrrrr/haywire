@@ -33,7 +33,8 @@ logerror *logerror_init();
 
 logerror *parse_error_line(logParseToken *parser, char *line) {
   time_t date = 0;
-  char *message = parseLogLine(parser, line, &date);
+  char *referer = NULL;
+  char *message = parseLogLine(parser, line, &date, &referer);
   if (message == NULL) {
     return NULL;
   }
@@ -44,6 +45,7 @@ logerror *parse_error_line(logParseToken *parser, char *line) {
 
   err->latest_occurrence->date = date;
   err->latest_occurrence->rownumber = ++rownumber;
+  err->latest_occurrence->referer = referer;
   err->key = message;
   err->keylength= strlen(message);
   err->msg = err->key;
@@ -284,7 +286,6 @@ void parse_php_error(logerror *err, lineparser *p) {
   
   //Get filename, line number and referer from the end of the string
   //in reverse order off course.
-  char *referer = lineparser_read_after_last(p, "referer: ");
   char *linenr = lineparser_read_after_last(p, " on line ");
   err->filename = lineparser_read_after_last(p, " in ");
   if (lineparser_begins_with(p, "Uncaught exception")) {
@@ -313,10 +314,6 @@ void parse_php_error(logerror *err, lineparser *p) {
   if (err->msg  == NULL || linenr == NULL || err->filename == NULL) {
     err->type = E_UNPARSED;
     return;
-  }
-  if (referer != NULL) {
-    err->keylength -= strlen(referer) + strlen("referer: ");
-    err->latest_occurrence->referer = strdup(referer);
   }
   if (!sscanf(linenr, "%d", &(err->linenr))) {
     err->type = E_UNPARSED;
