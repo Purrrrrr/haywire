@@ -243,6 +243,7 @@ logerror *errorlist_merge(logerror *list1, logerror *list2, int sorttype) {
   return list;
 }
 logerror *errorlist_sort(logerror *err, int sorttype) {
+  if (err == NULL) return NULL;
   if (err->next == NULL) return err;
   //printf("Sort! %d\n", err);
 
