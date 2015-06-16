@@ -253,7 +253,7 @@ short process_search_keyboard(int c) {
       break;
     default:
       if (!isprint(c)) break;
-      if (search_filter_len == search_filter_buffer_len) {
+      if (search_filter_len+1 == search_filter_buffer_len) {
         search_filter_buffer_len *= 2;
         search_filter = realloc(search_filter, search_filter_buffer_len);
         for(int i = search_filter_len; i < search_filter_buffer_len; ++i) {
@@ -264,6 +264,12 @@ short process_search_keyboard(int c) {
           exit_with_error("Error allocating memory");
         }
       }
+      d = search_filter_len;
+      while (d > search_filter_pos) {
+        search_filter[d] = search_filter[d-1];
+        d--;
+      }
+
       search_filter[search_filter_pos] = (char)c;
       search_filter_pos++;
       search_filter_len++;
