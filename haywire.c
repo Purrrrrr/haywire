@@ -196,7 +196,7 @@ short process_keyboard(int c) {
   return modified;
 }
 short process_search_keyboard(int c) {
-  int d = 0;
+  int d = 0, i = 0;
 
   switch(c) {
     case '\r':
@@ -208,11 +208,14 @@ short process_search_keyboard(int c) {
       search_delete_previous_characters(search_filter_pos);
       break; 
     case 23: //^W, clear word
-      while(!isalnum(search_filter[search_filter_pos-1-d])) {
+      i = search_filter_pos-1;
+      while(i >= 0 && !isalnum(search_filter[i])) {
         d++;
+        i--;
       }
-      while(isalnum(search_filter[search_filter_pos-1-d])) {
+      while(i >= 0 && isalnum(search_filter[i])) {
         d++;
+        i--;
       }
       search_delete_previous_characters(d);
 
@@ -243,9 +246,11 @@ short process_search_keyboard(int c) {
         search_filter_pos = search_filter_len;
       }
       break;
+    case KEY_HOME:
     case 1: //^A to start of line
       search_filter_pos = 0;
       break;
+    case KEY_END:
     case 5: //^E to end of line
       search_filter_pos = search_filter_len;
       break;
